@@ -40,6 +40,12 @@ import BrandMonitoring from '@/components/BrandMonitoring';
 import ImageGenerationModal from '@/components/ImageGenerationModal';
 import ContentRepurposingModal from '@/components/ContentRepurposingModal';
 import AutopilotPanel from '@/components/AutopilotPanel';
+import TrendHijacker from '@/components/TrendHijacker';
+import CloningDashboard from '@/components/CloningDashboard';
+import LeadIntelligence from '@/components/LeadIntelligence';
+import AIAgentWarRoom from '@/components/AIAgentWarRoom';
+import CommunityManager from '@/components/CommunityManager';
+import CulturalLocalization from '@/components/CulturalLocalization';
 import LanguageDropdown from '@/components/LanguageDropdown';
 import { SUPPORTED_UI_LANGUAGES, getTranslation } from '@/lib/i18n/translations';
 import { useAuth } from '@/lib/auth/AuthContext';
@@ -60,11 +66,11 @@ import {
     LayoutDashboard, FileText, BarChart3, Settings, Bot,
     Youtube, Instagram, Facebook, Globe, ArrowUpRight, ArrowDownRight, Eye, LogOut, User, Users, Bell, Search, ChevronDown,
     Video, Languages, Clock, FlaskConical, Link2, Building2, Shield, CreditCard, Wrench,
-    Scissors, Hash, Target, CheckCircle2, ImageIcon, Wand2, Repeat2
+    Scissors, Hash, Target, CheckCircle2, ImageIcon, Wand2, Repeat2, Swords, MessageSquare, Gift
 } from 'lucide-react';
 import type { ContentItem, Campaign } from '@/types';
 
-type TabType = 'overview' | 'content' | 'analytics' | 'automation' | 'tools' | 'settings';
+type TabType = 'overview' | 'content' | 'analytics' | 'automation' | 'leads' | 'collaboration' | 'community' | 'localization' | 'tools' | 'settings';
 
 function DashboardContent() {
     const router = useRouter();
@@ -159,6 +165,10 @@ function DashboardContent() {
         { id: 'content' as TabType, label: t('content'), icon: FileText, color: 'bg-blue-600' },
         { id: 'analytics' as TabType, label: t('analytics'), icon: BarChart3, color: 'bg-emerald-600' },
         { id: 'automation' as TabType, label: t('automation'), icon: Bot, color: 'bg-orange-600' },
+        { id: 'leads' as TabType, label: t('leads'), icon: Target, color: 'bg-emerald-600' },
+        { id: 'collaboration' as TabType, label: t('collaboration'), icon: Swords, color: 'bg-indigo-600' },
+        { id: 'community' as TabType, label: t('community'), icon: MessageSquare, color: 'bg-blue-600' },
+        { id: 'localization' as TabType, label: t('global'), icon: Globe, color: 'bg-emerald-600' },
         { id: 'tools' as TabType, label: t('tools'), icon: Wrench, color: 'bg-fuchsia-600' },
         { id: 'settings' as TabType, label: t('settings'), icon: Settings, color: 'bg-slate-600' },
     ];
@@ -200,6 +210,15 @@ function DashboardContent() {
                             variant="dark"
                             compact
                         />
+
+                        {/* Settings Quick Access */}
+                        <button
+                            onClick={() => setActiveTab('settings')}
+                            className={`p-2 rounded-lg transition-colors ${activeTab === 'settings' ? 'bg-white/20 text-white' : 'text-white/60 hover:bg-white/10 hover:text-white'}`}
+                            title={t('settings')}
+                        >
+                            <Settings className="w-5 h-5" />
+                        </button>
 
                         {/* User Menu */}
                         <div className="relative">
@@ -247,6 +266,51 @@ function DashboardContent() {
                                             <Zap className="w-4 h-4" />
                                             <span className="text-sm">{t('upgradePlan')}</span>
                                         </button>
+                                        <button
+                                            onClick={() => router.push('/affiliate')}
+                                            className="w-full flex items-center gap-3 px-3 py-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors text-left"
+                                        >
+                                            <Gift className="w-4 h-4" />
+                                            <span className="text-sm font-medium">Affiliate Program</span>
+                                        </button>
+                                        {/* CXO Links - Individual Roles */}
+                                        {(user?.isAdmin || user?.plan === 'enterprise') && (
+                                            <div className="border-t border-slate-100 mt-2 pt-2">
+                                                <p className="px-3 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Executive Access</p>
+                                                <button
+                                                    onClick={() => router.push('/cxo/login?role=ceo')}
+                                                    className="w-full flex items-center gap-3 px-3 py-1.5 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors text-left"
+                                                >
+                                                    <Crown className="w-4 h-4" />
+                                                    <span className="text-sm">CEO Login</span>
+                                                </button>
+                                                <button
+                                                    onClick={() => router.push('/cxo/login?role=chairman')}
+                                                    className="w-full flex items-center gap-3 px-3 py-1.5 text-violet-600 hover:bg-violet-50 rounded-lg transition-colors text-left"
+                                                >
+                                                    <Shield className="w-4 h-4" />
+                                                    <span className="text-sm">Chairman Login</span>
+                                                </button>
+                                                <button
+                                                    onClick={() => router.push('/cxo/login?role=md')}
+                                                    className="w-full flex items-center gap-3 px-3 py-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors text-left"
+                                                >
+                                                    <Building2 className="w-4 h-4" />
+                                                    <span className="text-sm">MD Login</span>
+                                                </button>
+                                                <div className="grid grid-cols-3 gap-1 px-2 py-1">
+                                                    {['cfo', 'coo', 'cto'].map((role) => (
+                                                        <button
+                                                            key={role}
+                                                            onClick={() => router.push(`/cxo/login?role=${role}`)}
+                                                            className="px-2 py-1 bg-slate-50 hover:bg-slate-100 rounded text-[10px] font-bold text-slate-600 uppercase transition-colors"
+                                                        >
+                                                            {role}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
                                         {/* Admin Link - Only shown for admin users */}
                                         {user?.isAdmin && (
                                             <>
@@ -278,7 +342,7 @@ function DashboardContent() {
             {/* Tab Navigation */}
             <div className="bg-white border-b border-slate-200 shadow-sm sticky top-0 z-50">
                 <div className="px-8">
-                    <div className="flex gap-1">
+                    <div className="flex gap-1 overflow-x-auto scrollbar-hide no-scrollbar">
                         {tabs.map((tab) => (
                             <button
                                 key={tab.id}
@@ -733,6 +797,34 @@ function DashboardContent() {
                     </div>
                 )}
 
+                {/* Leads Tab */}
+                {activeTab === 'leads' && (
+                    <div className="space-y-6">
+                        <LeadIntelligence />
+                    </div>
+                )}
+
+                {/* Collaboration Tab */}
+                {activeTab === 'collaboration' && (
+                    <div className="space-y-6">
+                        <AIAgentWarRoom />
+                    </div>
+                )}
+
+                {/* Community Tab */}
+                {activeTab === 'community' && (
+                    <div className="space-y-6">
+                        <CommunityManager />
+                    </div>
+                )}
+
+                {/* Localization Tab */}
+                {activeTab === 'localization' && (
+                    <div className="space-y-6">
+                        <CulturalLocalization />
+                    </div>
+                )}
+
                 {/* Analytics Tab */}
                 {activeTab === 'analytics' && (
                     <div className="space-y-6">
@@ -968,6 +1060,7 @@ function DashboardContent() {
                                         {
                                             group: t('discovery'),
                                             items: [
+                                                { id: 'trends', label: t('trends'), icon: Zap, color: 'text-amber-600', bg: 'bg-amber-50' },
                                                 { id: 'influencers', label: t('influencerDiscovery'), icon: Users, color: 'text-fuchsia-600', bg: 'bg-fuchsia-50' },
                                                 { id: 'hashtags', label: t('hashtagTrends'), icon: Hash, color: 'text-indigo-600', bg: 'bg-indigo-50' },
                                                 { id: 'keywords', label: t('keywordResearch'), icon: Search, color: 'text-blue-600', bg: 'bg-blue-50' },
@@ -976,7 +1069,8 @@ function DashboardContent() {
                                         {
                                             group: t('intelligence'),
                                             items: [
-                                                { id: 'competitor', label: t('competitiveIntel'), icon: Target, color: 'text-rose-600', bg: 'bg-rose-50' },
+                                                { id: 'studio', label: t('aiCloning'), icon: Video, color: 'text-rose-600', bg: 'bg-rose-50', desc: t('aiCloningDesc') },
+                                                { id: 'competitor', label: t('competitiveIntel'), icon: Target, color: 'text-purple-600', bg: 'bg-purple-50' },
                                                 { id: 'monitoring', label: t('brandMonitoring'), icon: Eye, color: 'text-orange-600', bg: 'bg-orange-50' },
                                             ]
                                         },
@@ -1014,6 +1108,18 @@ function DashboardContent() {
 
                         {/* Tools Content */}
                         <div className="flex-1 space-y-6">
+                            {toolsTab === 'trends' && (
+                                <div className="space-y-6">
+                                    <TrendHijacker />
+                                </div>
+                            )}
+
+                            {toolsTab === 'studio' && (
+                                <div className="space-y-6">
+                                    <CloningDashboard />
+                                </div>
+                            )}
+
                             {toolsTab === 'influencers' && (
                                 <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
                                     <InfluencerDiscovery />
@@ -1080,32 +1186,32 @@ function DashboardContent() {
                                 <nav className="p-2 space-y-4">
                                     {[
                                         {
-                                            group: 'Brand & Setup',
+                                            group: t('brandAndSetup'),
                                             items: [
-                                                { id: 'brand', label: 'Brand Profile', icon: Building2, color: 'text-violet-600', bg: 'bg-violet-50' },
-                                                { id: 'language', label: 'Languages', icon: Languages, color: 'text-cyan-600', bg: 'bg-cyan-50' },
-                                                { id: 'notifications', label: 'Notifications', icon: Bell, color: 'text-rose-600', bg: 'bg-rose-50' },
+                                                { id: 'brand', label: t('brandProfile'), icon: Building2, color: 'text-violet-600', bg: 'bg-violet-50' },
+                                                { id: 'language', label: t('languages'), icon: Languages, color: 'text-cyan-600', bg: 'bg-cyan-50' },
+                                                { id: 'notifications', label: t('notifications'), icon: Bell, color: 'text-rose-600', bg: 'bg-rose-50' },
                                             ]
                                         },
                                         {
-                                            group: 'Content',
+                                            group: t('contentGroup'),
                                             items: [
-                                                { id: 'campaign', label: 'Campaign', icon: Zap, color: 'text-blue-600', bg: 'bg-blue-50' },
-                                                { id: 'approval', label: 'Approval Pipeline', icon: CheckCircle2, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+                                                { id: 'campaign', label: t('campaign'), icon: Zap, color: 'text-blue-600', bg: 'bg-blue-50' },
+                                                { id: 'approval', label: t('approvalPipeline'), icon: CheckCircle2, color: 'text-emerald-600', bg: 'bg-emerald-50' },
                                             ]
                                         },
                                         {
-                                            group: 'Connections',
+                                            group: t('connections'),
                                             items: [
-                                                { id: 'team', label: 'Team Members', icon: Users, color: 'text-purple-600', bg: 'bg-purple-50' },
-                                                { id: 'platforms', label: 'Platforms', icon: Globe, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+                                                { id: 'team', label: t('teamMembers'), icon: Users, color: 'text-purple-600', bg: 'bg-purple-50' },
+                                                { id: 'platforms', label: t('platforms'), icon: Globe, color: 'text-emerald-600', bg: 'bg-emerald-50' },
                                             ]
                                         },
                                         {
-                                            group: 'System',
+                                            group: t('system'),
                                             items: [
-                                                { id: 'credentials', label: 'API Keys', icon: Shield, color: 'text-red-600', bg: 'bg-red-50' },
-                                                { id: 'billing', label: 'Usage & Billing', icon: CreditCard, color: 'text-pink-600', bg: 'bg-pink-50' },
+                                                { id: 'credentials', label: t('apiKeys'), icon: Shield, color: 'text-red-600', bg: 'bg-red-50' },
+                                                { id: 'billing', label: t('usageAndBilling'), icon: CreditCard, color: 'text-pink-600', bg: 'bg-pink-50' },
                                             ]
                                         }
                                     ].map((section) => (
@@ -1149,6 +1255,7 @@ function DashboardContent() {
                                             console.log('Brand profile saved:', profile);
                                             setCampaign(prev => ({ ...prev, name: profile.brandName }));
                                         }}
+                                        currentLanguage={currentLanguage}
                                     />
                                 </div>
                             )}
@@ -1294,6 +1401,7 @@ function DashboardContent() {
                                     <LanguageSettings
                                         primaryLanguage="en"
                                         targetMarkets={['es', 'fr', 'de', 'zh', 'ja']}
+                                        currentLanguage={currentLanguage}
                                     />
                                 </div>
                             )}

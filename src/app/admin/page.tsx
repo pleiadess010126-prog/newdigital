@@ -43,7 +43,16 @@ import {
     ArrowDownRight,
     LogOut,
     Home,
+    Loader2,
 } from 'lucide-react';
+
+// API Test Status types
+type TestStatus = 'idle' | 'testing' | 'success' | 'error';
+
+interface ApiTestResult {
+    status: TestStatus;
+    message?: string;
+}
 
 // Mock admin data
 const mockStats = {
@@ -94,6 +103,145 @@ export default function AdminPage() {
     const [userFilter, setUserFilter] = useState('all');
     const [selectedUsers, setSelectedUsers] = useState<number[]>([]);
 
+    // API Key States
+    const [apiKeys, setApiKeys] = useState({
+        openai: '',
+        anthropic: '',
+        did: '',
+        synthesia: '',
+        pictory: '',
+        elevenlabs: '',
+        stabilityai: '',
+    });
+
+    // Test Status States
+    const [testResults, setTestResults] = useState<Record<string, ApiTestResult>>({
+        openai: { status: 'idle' },
+        anthropic: { status: 'idle' },
+        did: { status: 'idle' },
+        synthesia: { status: 'idle' },
+        pictory: { status: 'idle' },
+        elevenlabs: { status: 'idle' },
+        stabilityai: { status: 'idle' },
+    });
+
+    // Toast notification state
+    const [toast, setToast] = useState<{ show: boolean; message: string; type: 'success' | 'error' | 'info' }>({
+        show: false,
+        message: '',
+        type: 'info',
+    });
+
+    // Show toast notification
+    const showToast = (message: string, type: 'success' | 'error' | 'info') => {
+        setToast({ show: true, message, type });
+        setTimeout(() => setToast({ show: false, message: '', type: 'info' }), 4000);
+    };
+
+    // Test individual API connection - calls real API endpoint
+    const testApiConnection = async (service: string, apiKey: string) => {
+        if (!apiKey || apiKey.trim() === '') {
+            showToast(`Please enter an API key for ${service} first`, 'error');
+            return;
+        }
+
+        setTestResults(prev => ({
+            ...prev,
+            [service]: { status: 'testing' },
+        }));
+
+        try {
+            // Call the real API test endpoint
+            const response = await fetch('/api/test-connection', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ service, apiKey }),
+            });
+
+            const result = await response.json();
+
+            setTestResults(prev => ({
+                ...prev,
+                [service]: {
+                    status: result.success ? 'success' : 'error',
+                    message: result.message
+                },
+            }));
+
+            // Show toast with message and any additional details
+            let toastMessage = result.message;
+            if (result.success && result.details) {
+                // Add relevant details to the message
+                if (result.details.modelsAvailable) {
+                    toastMessage += ` (${result.details.modelsAvailable} models available)`;
+                }
+                if (result.details.voicesAvailable) {
+                    toastMessage += ` (${result.details.voicesAvailable} voices available)`;
+                }
+                if (result.details.subscription) {
+                    toastMessage += ` (Tier: ${result.details.subscription})`;
+                }
+                if (result.details.credits !== undefined) {
+                    toastMessage += ` (Credits: ${result.details.credits})`;
+                }
+                if (result.details.remainingCredits) {
+                    toastMessage += ` (Remaining: ${result.details.remainingCredits})`;
+                }
+            }
+
+            showToast(toastMessage, result.success ? 'success' : 'error');
+        } catch (error) {
+            setTestResults(prev => ({
+                ...prev,
+                [service]: { status: 'error', message: 'Connection failed - Network error' },
+            }));
+            showToast(`Failed to test ${service} connection - Network error`, 'error');
+        }
+    };
+
+    // Test all connections
+    const testAllConnections = async () => {
+        showToast('Testing all API connections...', 'info');
+
+        const services = Object.keys(apiKeys) as (keyof typeof apiKeys)[];
+        for (const service of services) {
+            if (apiKeys[service]) {
+                await testApiConnection(service, apiKeys[service]);
+            }
+        }
+
+        showToast('All connections tested!', 'success');
+    };
+
+    // Handle API key change
+    const handleApiKeyChange = (service: keyof typeof apiKeys, value: string) => {
+        setApiKeys(prev => ({
+            ...prev,
+            [service]: value,
+        }));
+        // Reset test status when key changes
+        setTestResults(prev => ({
+            ...prev,
+            [service]: { status: 'idle' },
+        }));
+    };
+
+    // Get button style based on test status
+    const getTestButtonStyle = (status: TestStatus) => {
+        switch (status) {
+            case 'testing':
+                return 'bg-blue-500/20 text-blue-400 cursor-wait';
+            case 'success':
+                return 'bg-emerald-500/20 text-emerald-400';
+            case 'error':
+                return 'bg-red-500/20 text-red-400';
+            default:
+                return 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30';
+        }
+    };
+
     // Check admin access
     useEffect(() => {
         // In production, check if user is admin
@@ -118,6 +266,20 @@ export default function AdminPage() {
 
     return (
         <div className="min-h-screen bg-slate-900">
+            {/* Toast Notification */}
+            {toast.show && (
+                <div className={`fixed top-4 right-4 z-50 px-6 py-4 rounded-xl shadow-2xl border transition-all duration-300 animate-pulse ${toast.type === 'success' ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-400' :
+                    toast.type === 'error' ? 'bg-red-500/20 border-red-500/30 text-red-400' :
+                        'bg-blue-500/20 border-blue-500/30 text-blue-400'
+                    }`}>
+                    <div className="flex items-center gap-3">
+                        {toast.type === 'success' && <CheckCircle2 className="w-5 h-5" />}
+                        {toast.type === 'error' && <XCircle className="w-5 h-5" />}
+                        {toast.type === 'info' && <Loader2 className="w-5 h-5 animate-spin" />}
+                        <span className="font-medium">{toast.message}</span>
+                    </div>
+                </div>
+            )}
             {/* Top Navigation */}
             <nav className="bg-slate-800 border-b border-slate-700 px-6 py-4">
                 <div className="flex items-center justify-between">
@@ -637,78 +799,748 @@ export default function AdminPage() {
                     {/* Settings Tab */}
                     {activeTab === 'settings' && (
                         <div className="space-y-6">
-                            <div>
-                                <h2 className="text-2xl font-bold text-white">Admin Settings</h2>
-                                <p className="text-slate-400">Configure system settings and preferences</p>
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <h2 className="text-2xl font-bold text-white">Admin Settings</h2>
+                                    <p className="text-slate-400">Configure all system settings, API keys, and environment variables</p>
+                                </div>
+                                <div className="flex gap-3">
+                                    <button
+                                        onClick={testAllConnections}
+                                        className="flex items-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
+                                    >
+                                        <RefreshCw className="w-4 h-4" />
+                                        Test All Connections
+                                    </button>
+                                    <button className="flex items-center gap-2 px-4 py-2 bg-violet-500 hover:bg-violet-600 text-white rounded-lg transition-colors">
+                                        <CheckCircle2 className="w-4 h-4" />
+                                        Save All Settings
+                                    </button>
+                                </div>
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                {/* API Keys */}
-                                <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6">
-                                    <h3 className="text-lg font-bold text-white mb-4">API Configuration</h3>
-                                    <div className="space-y-4">
+                            {/* Settings Navigation Tabs */}
+                            <div className="flex flex-wrap gap-2 border-b border-slate-700 pb-4">
+                                {['All Settings', 'AWS Infrastructure', 'AI Services', 'Payment', 'Translation', 'App Config', 'Analytics'].map((tab) => (
+                                    <button
+                                        key={tab}
+                                        className="px-4 py-2 text-sm rounded-lg bg-slate-700/50 text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
+                                    >
+                                        {tab}
+                                    </button>
+                                ))}
+                            </div>
+
+                            {/* AWS Infrastructure Section */}
+                            <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6">
+                                <div className="flex items-center gap-3 mb-6">
+                                    <div className="w-10 h-10 bg-amber-500/20 rounded-xl flex items-center justify-center">
+                                        <Server className="w-5 h-5 text-amber-400" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-lg font-bold text-white">AWS Infrastructure</h3>
+                                        <p className="text-sm text-slate-400">Cognito, S3, and DynamoDB configuration</p>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {/* Cognito Settings */}
+                                    <div className="space-y-4 p-4 bg-slate-700/30 rounded-xl">
+                                        <h4 className="text-sm font-semibold text-amber-400 flex items-center gap-2">
+                                            <Shield className="w-4 h-4" />
+                                            AWS Cognito (Authentication)
+                                        </h4>
                                         <div>
-                                            <label className="block text-sm text-slate-400 mb-1">OpenAI API Key</label>
+                                            <label className="block text-xs text-slate-400 mb-1">User Pool ID</label>
                                             <input
-                                                type="password"
-                                                value="sk-************************"
-                                                className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white"
-                                                readOnly
+                                                type="text"
+                                                placeholder="us-east-1_xxxxxxxxx"
+                                                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:border-violet-500 focus:outline-none"
                                             />
                                         </div>
                                         <div>
-                                            <label className="block text-sm text-slate-400 mb-1">ElevenLabs API Key</label>
+                                            <label className="block text-xs text-slate-400 mb-1">Client ID</label>
                                             <input
-                                                type="password"
-                                                value="************************"
-                                                className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white"
-                                                readOnly
+                                                type="text"
+                                                placeholder="Enter Cognito Client ID"
+                                                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:border-violet-500 focus:outline-none"
                                             />
                                         </div>
                                         <div>
-                                            <label className="block text-sm text-slate-400 mb-1">Stripe Secret Key</label>
+                                            <label className="block text-xs text-slate-400 mb-1">AWS Region</label>
+                                            <select className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:border-violet-500 focus:outline-none">
+                                                <option value="us-east-1">us-east-1 (N. Virginia)</option>
+                                                <option value="us-west-2">us-west-2 (Oregon)</option>
+                                                <option value="eu-west-1">eu-west-1 (Ireland)</option>
+                                                <option value="ap-southeast-1">ap-southeast-1 (Singapore)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    {/* AWS Credentials */}
+                                    <div className="space-y-4 p-4 bg-slate-700/30 rounded-xl">
+                                        <h4 className="text-sm font-semibold text-amber-400 flex items-center gap-2">
+                                            <Shield className="w-4 h-4" />
+                                            AWS Credentials
+                                        </h4>
+                                        <div>
+                                            <label className="block text-xs text-slate-400 mb-1">Access Key ID</label>
                                             <input
                                                 type="password"
-                                                value="sk_live_************************"
-                                                className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white"
-                                                readOnly
+                                                placeholder="AKIA..."
+                                                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:border-violet-500 focus:outline-none"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs text-slate-400 mb-1">Secret Access Key</label>
+                                            <input
+                                                type="password"
+                                                placeholder="Enter secret key"
+                                                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:border-violet-500 focus:outline-none"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* S3 & DynamoDB */}
+                                    <div className="space-y-4 p-4 bg-slate-700/30 rounded-xl">
+                                        <h4 className="text-sm font-semibold text-amber-400 flex items-center gap-2">
+                                            <Database className="w-4 h-4" />
+                                            S3 & DynamoDB
+                                        </h4>
+                                        <div>
+                                            <label className="block text-xs text-slate-400 mb-1">S3 Bucket Name</label>
+                                            <input
+                                                type="text"
+                                                placeholder="digitalmeng-media"
+                                                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:border-violet-500 focus:outline-none"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs text-slate-400 mb-1">DynamoDB Table Prefix</label>
+                                            <input
+                                                type="text"
+                                                placeholder="digitalmeng_"
+                                                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:border-violet-500 focus:outline-none"
                                             />
                                         </div>
                                     </div>
                                 </div>
+                            </div>
 
-                                {/* Email Settings */}
-                                <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6">
-                                    <h3 className="text-lg font-bold text-white mb-4">Email & Notifications</h3>
-                                    <div className="space-y-4">
-                                        <div className="flex items-center justify-between">
-                                            <div>
-                                                <p className="text-sm text-white">New signup notifications</p>
-                                                <p className="text-xs text-slate-400">Email when new users register</p>
+                            {/* AI Content Creation Section */}
+                            <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6">
+                                <div className="flex items-center gap-3 mb-6">
+                                    <div className="w-10 h-10 bg-violet-500/20 rounded-xl flex items-center justify-center">
+                                        <Zap className="w-5 h-5 text-violet-400" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-lg font-bold text-white">AI Content Creation Services</h3>
+                                        <p className="text-sm text-slate-400">Text, Video, Voice, and Image generation APIs</p>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    {/* Text Generation */}
+                                    <div className="space-y-4 p-4 bg-slate-700/30 rounded-xl">
+                                        <h4 className="text-sm font-semibold text-violet-400 flex items-center gap-2">
+                                            <Globe className="w-4 h-4" />
+                                            AI Text Generation
+                                        </h4>
+                                        <div>
+                                            <label className="block text-xs text-slate-400 mb-1">OpenAI API Key (GPT-4, GPT-3.5)</label>
+                                            <div className="flex gap-2">
+                                                <input
+                                                    type="password"
+                                                    placeholder="sk-..."
+                                                    value={apiKeys.openai}
+                                                    onChange={(e) => handleApiKeyChange('openai', e.target.value)}
+                                                    className="flex-1 px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:border-violet-500 focus:outline-none"
+                                                />
+                                                <button
+                                                    onClick={() => testApiConnection('openai', apiKeys.openai)}
+                                                    disabled={testResults.openai.status === 'testing'}
+                                                    className={`px-3 py-2 rounded-lg text-xs flex items-center gap-1 ${getTestButtonStyle(testResults.openai.status)}`}
+                                                >
+                                                    {testResults.openai.status === 'testing' ? (
+                                                        <><Loader2 className="w-3 h-3 animate-spin" /> Testing...</>
+                                                    ) : testResults.openai.status === 'success' ? (
+                                                        <><CheckCircle2 className="w-3 h-3" /> Success</>
+                                                    ) : testResults.openai.status === 'error' ? (
+                                                        <><XCircle className="w-3 h-3" /> Failed</>
+                                                    ) : (
+                                                        'Test'
+                                                    )}
+                                                </button>
                                             </div>
-                                            <button className="w-12 h-6 bg-violet-500 rounded-full relative">
-                                                <span className="absolute right-1 top-1 w-4 h-4 bg-white rounded-full"></span>
-                                            </button>
+                                            <p className="text-xs text-slate-500 mt-1">Get key at: platform.openai.com/api-keys</p>
                                         </div>
-                                        <div className="flex items-center justify-between">
-                                            <div>
-                                                <p className="text-sm text-white">Payment failure alerts</p>
-                                                <p className="text-xs text-slate-400">Alert on failed payments</p>
+                                        <div>
+                                            <label className="block text-xs text-slate-400 mb-1">Anthropic API Key (Claude)</label>
+                                            <div className="flex gap-2">
+                                                <input
+                                                    type="password"
+                                                    placeholder="sk-ant-..."
+                                                    value={apiKeys.anthropic}
+                                                    onChange={(e) => handleApiKeyChange('anthropic', e.target.value)}
+                                                    className="flex-1 px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:border-violet-500 focus:outline-none"
+                                                />
+                                                <button
+                                                    onClick={() => testApiConnection('anthropic', apiKeys.anthropic)}
+                                                    disabled={testResults.anthropic.status === 'testing'}
+                                                    className={`px-3 py-2 rounded-lg text-xs flex items-center gap-1 ${getTestButtonStyle(testResults.anthropic.status)}`}
+                                                >
+                                                    {testResults.anthropic.status === 'testing' ? (
+                                                        <><Loader2 className="w-3 h-3 animate-spin" /> Testing...</>
+                                                    ) : testResults.anthropic.status === 'success' ? (
+                                                        <><CheckCircle2 className="w-3 h-3" /> Success</>
+                                                    ) : testResults.anthropic.status === 'error' ? (
+                                                        <><XCircle className="w-3 h-3" /> Failed</>
+                                                    ) : (
+                                                        'Test'
+                                                    )}
+                                                </button>
                                             </div>
-                                            <button className="w-12 h-6 bg-violet-500 rounded-full relative">
-                                                <span className="absolute right-1 top-1 w-4 h-4 bg-white rounded-full"></span>
-                                            </button>
+                                            <p className="text-xs text-slate-500 mt-1">Get key at: console.anthropic.com</p>
                                         </div>
-                                        <div className="flex items-center justify-between">
-                                            <div>
-                                                <p className="text-sm text-white">System health reports</p>
-                                                <p className="text-xs text-slate-400">Daily system health email</p>
+                                        <div className="flex items-center gap-2 mt-2 p-2 bg-blue-500/10 rounded-lg border border-blue-500/20">
+                                            <CheckCircle2 className="w-4 h-4 text-blue-400" />
+                                            <span className="text-xs text-blue-300">AWS Bedrock uses AWS credentials above</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Video Generation */}
+                                    <div className="space-y-4 p-4 bg-slate-700/30 rounded-xl">
+                                        <h4 className="text-sm font-semibold text-pink-400 flex items-center gap-2">
+                                            <Video className="w-4 h-4" />
+                                            AI Video Generation
+                                        </h4>
+                                        <div>
+                                            <label className="block text-xs text-slate-400 mb-1">D-ID API Key (AI Avatar Videos)</label>
+                                            <div className="flex gap-2">
+                                                <input
+                                                    type="password"
+                                                    placeholder="Enter D-ID API key"
+                                                    value={apiKeys.did}
+                                                    onChange={(e) => handleApiKeyChange('did', e.target.value)}
+                                                    className="flex-1 px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:border-violet-500 focus:outline-none"
+                                                />
+                                                <button
+                                                    onClick={() => testApiConnection('did', apiKeys.did)}
+                                                    disabled={testResults.did.status === 'testing'}
+                                                    className={`px-3 py-2 rounded-lg text-xs flex items-center gap-1 ${getTestButtonStyle(testResults.did.status)}`}
+                                                >
+                                                    {testResults.did.status === 'testing' ? (
+                                                        <><Loader2 className="w-3 h-3 animate-spin" /> Testing...</>
+                                                    ) : testResults.did.status === 'success' ? (
+                                                        <><CheckCircle2 className="w-3 h-3" /> Success</>
+                                                    ) : testResults.did.status === 'error' ? (
+                                                        <><XCircle className="w-3 h-3" /> Failed</>
+                                                    ) : (
+                                                        'Test'
+                                                    )}
+                                                </button>
                                             </div>
-                                            <button className="w-12 h-6 bg-slate-600 rounded-full relative">
-                                                <span className="absolute left-1 top-1 w-4 h-4 bg-white rounded-full"></span>
+                                            <p className="text-xs text-slate-500 mt-1">Get key at: studio.d-id.com</p>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs text-slate-400 mb-1">Synthesia API Key</label>
+                                            <div className="flex gap-2">
+                                                <input
+                                                    type="password"
+                                                    placeholder="Enter Synthesia API key"
+                                                    value={apiKeys.synthesia}
+                                                    onChange={(e) => handleApiKeyChange('synthesia', e.target.value)}
+                                                    className="flex-1 px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:border-violet-500 focus:outline-none"
+                                                />
+                                                <button
+                                                    onClick={() => testApiConnection('synthesia', apiKeys.synthesia)}
+                                                    disabled={testResults.synthesia.status === 'testing'}
+                                                    className={`px-3 py-2 rounded-lg text-xs flex items-center gap-1 ${getTestButtonStyle(testResults.synthesia.status)}`}
+                                                >
+                                                    {testResults.synthesia.status === 'testing' ? (
+                                                        <><Loader2 className="w-3 h-3 animate-spin" /> Testing...</>
+                                                    ) : testResults.synthesia.status === 'success' ? (
+                                                        <><CheckCircle2 className="w-3 h-3" /> Success</>
+                                                    ) : testResults.synthesia.status === 'error' ? (
+                                                        <><XCircle className="w-3 h-3" /> Failed</>
+                                                    ) : (
+                                                        'Test'
+                                                    )}
+                                                </button>
+                                            </div>
+                                            <p className="text-xs text-slate-500 mt-1">Get key at: synthesia.io</p>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs text-slate-400 mb-1">Pictory API Key (Stock Video + Voiceover)</label>
+                                            <div className="flex gap-2">
+                                                <input
+                                                    type="password"
+                                                    placeholder="Enter Pictory API key"
+                                                    value={apiKeys.pictory}
+                                                    onChange={(e) => handleApiKeyChange('pictory', e.target.value)}
+                                                    className="flex-1 px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:border-violet-500 focus:outline-none"
+                                                />
+                                                <button
+                                                    onClick={() => testApiConnection('pictory', apiKeys.pictory)}
+                                                    disabled={testResults.pictory.status === 'testing'}
+                                                    className={`px-3 py-2 rounded-lg text-xs flex items-center gap-1 ${getTestButtonStyle(testResults.pictory.status)}`}
+                                                >
+                                                    {testResults.pictory.status === 'testing' ? (
+                                                        <><Loader2 className="w-3 h-3 animate-spin" /> Testing...</>
+                                                    ) : testResults.pictory.status === 'success' ? (
+                                                        <><CheckCircle2 className="w-3 h-3" /> Success</>
+                                                    ) : testResults.pictory.status === 'error' ? (
+                                                        <><XCircle className="w-3 h-3" /> Failed</>
+                                                    ) : (
+                                                        'Test'
+                                                    )}
+                                                </button>
+                                            </div>
+                                            <p className="text-xs text-slate-500 mt-1">Get key at: pictory.ai</p>
+                                        </div>
+                                    </div>
+
+                                    {/* Voice Generation */}
+                                    <div className="space-y-4 p-4 bg-slate-700/30 rounded-xl">
+                                        <h4 className="text-sm font-semibold text-cyan-400 flex items-center gap-2">
+                                            <Mic className="w-4 h-4" />
+                                            AI Voice Generation
+                                        </h4>
+                                        <div>
+                                            <label className="block text-xs text-slate-400 mb-1">ElevenLabs API Key</label>
+                                            <div className="flex gap-2">
+                                                <input
+                                                    type="password"
+                                                    placeholder="sk_..."
+                                                    value={apiKeys.elevenlabs}
+                                                    onChange={(e) => handleApiKeyChange('elevenlabs', e.target.value)}
+                                                    className="flex-1 px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:border-violet-500 focus:outline-none"
+                                                />
+                                                <button
+                                                    onClick={() => testApiConnection('elevenlabs', apiKeys.elevenlabs)}
+                                                    disabled={testResults.elevenlabs.status === 'testing'}
+                                                    className={`px-3 py-2 rounded-lg text-xs flex items-center gap-1 ${getTestButtonStyle(testResults.elevenlabs.status)}`}
+                                                >
+                                                    {testResults.elevenlabs.status === 'testing' ? (
+                                                        <><Loader2 className="w-3 h-3 animate-spin" /> Testing...</>
+                                                    ) : testResults.elevenlabs.status === 'success' ? (
+                                                        <><CheckCircle2 className="w-3 h-3" /> Success</>
+                                                    ) : testResults.elevenlabs.status === 'error' ? (
+                                                        <><XCircle className="w-3 h-3" /> Failed</>
+                                                    ) : (
+                                                        'Test'
+                                                    )}
+                                                </button>
+                                            </div>
+                                            <p className="text-xs text-slate-500 mt-1">Get key at: elevenlabs.io</p>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs text-slate-400 mb-1">Default Voice ID</label>
+                                            <input
+                                                type="text"
+                                                placeholder="EXAVITQu4vr4xnSDxMaL"
+                                                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:border-violet-500 focus:outline-none"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* Image Generation */}
+                                    <div className="space-y-4 p-4 bg-slate-700/30 rounded-xl">
+                                        <h4 className="text-sm font-semibold text-purple-400 flex items-center gap-2">
+                                            <ImageIcon className="w-4 h-4" />
+                                            AI Image Generation
+                                        </h4>
+                                        <div className="flex items-center gap-2 p-2 bg-blue-500/10 rounded-lg border border-blue-500/20">
+                                            <CheckCircle2 className="w-4 h-4 text-blue-400" />
+                                            <span className="text-xs text-blue-300">DALL-E uses OpenAI API key above</span>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs text-slate-400 mb-1">Stability AI API Key (Stable Diffusion)</label>
+                                            <div className="flex gap-2">
+                                                <input
+                                                    type="password"
+                                                    placeholder="Enter Stability AI key (optional)"
+                                                    value={apiKeys.stabilityai}
+                                                    onChange={(e) => handleApiKeyChange('stabilityai', e.target.value)}
+                                                    className="flex-1 px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:border-violet-500 focus:outline-none"
+                                                />
+                                                <button
+                                                    onClick={() => testApiConnection('stabilityai', apiKeys.stabilityai)}
+                                                    disabled={testResults.stabilityai.status === 'testing'}
+                                                    className={`px-3 py-2 rounded-lg text-xs flex items-center gap-1 ${getTestButtonStyle(testResults.stabilityai.status)}`}
+                                                >
+                                                    {testResults.stabilityai.status === 'testing' ? (
+                                                        <><Loader2 className="w-3 h-3 animate-spin" /> Testing...</>
+                                                    ) : testResults.stabilityai.status === 'success' ? (
+                                                        <><CheckCircle2 className="w-3 h-3" /> Success</>
+                                                    ) : testResults.stabilityai.status === 'error' ? (
+                                                        <><XCircle className="w-3 h-3" /> Failed</>
+                                                    ) : (
+                                                        'Test'
+                                                    )}
+                                                </button>
+                                            </div>
+                                            <p className="text-xs text-slate-500 mt-1">Get key at: stability.ai</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Payment & Billing Section */}
+                            <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6">
+                                <div className="flex items-center gap-3 mb-6">
+                                    <div className="w-10 h-10 bg-emerald-500/20 rounded-xl flex items-center justify-center">
+                                        <DollarSign className="w-5 h-5 text-emerald-400" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-lg font-bold text-white">Payment & Billing (Stripe)</h3>
+                                        <p className="text-sm text-slate-400">Configure Stripe API keys and subscription price IDs</p>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    {/* Stripe Keys */}
+                                    <div className="space-y-4 p-4 bg-slate-700/30 rounded-xl">
+                                        <h4 className="text-sm font-semibold text-emerald-400 flex items-center gap-2">
+                                            <CreditCard className="w-4 h-4" />
+                                            Stripe API Keys
+                                        </h4>
+                                        <div>
+                                            <label className="block text-xs text-slate-400 mb-1">Secret Key</label>
+                                            <input
+                                                type="password"
+                                                placeholder="sk_live_... or sk_test_..."
+                                                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:border-violet-500 focus:outline-none"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs text-slate-400 mb-1">Publishable Key</label>
+                                            <input
+                                                type="text"
+                                                placeholder="pk_live_... or pk_test_..."
+                                                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:border-violet-500 focus:outline-none"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs text-slate-400 mb-1">Webhook Secret</label>
+                                            <input
+                                                type="password"
+                                                placeholder="whsec_..."
+                                                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:border-violet-500 focus:outline-none"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* Stripe Price IDs */}
+                                    <div className="space-y-4 p-4 bg-slate-700/30 rounded-xl">
+                                        <h4 className="text-sm font-semibold text-emerald-400 flex items-center gap-2">
+                                            <DollarSign className="w-4 h-4" />
+                                            Subscription Price IDs
+                                        </h4>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div>
+                                                <label className="block text-xs text-slate-400 mb-1">Starter Monthly</label>
+                                                <input
+                                                    type="text"
+                                                    placeholder="price_xxx"
+                                                    className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:border-violet-500 focus:outline-none"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs text-slate-400 mb-1">Starter Yearly</label>
+                                                <input
+                                                    type="text"
+                                                    placeholder="price_xxx"
+                                                    className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:border-violet-500 focus:outline-none"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs text-slate-400 mb-1">Pro Monthly</label>
+                                                <input
+                                                    type="text"
+                                                    placeholder="price_xxx"
+                                                    className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:border-violet-500 focus:outline-none"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs text-slate-400 mb-1">Pro Yearly</label>
+                                                <input
+                                                    type="text"
+                                                    placeholder="price_xxx"
+                                                    className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:border-violet-500 focus:outline-none"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs text-slate-400 mb-1">Enterprise Monthly</label>
+                                                <input
+                                                    type="text"
+                                                    placeholder="price_xxx"
+                                                    className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:border-violet-500 focus:outline-none"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs text-slate-400 mb-1">Enterprise Yearly</label>
+                                                <input
+                                                    type="text"
+                                                    placeholder="price_xxx"
+                                                    className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:border-violet-500 focus:outline-none"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Translation Services Section */}
+                            <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6">
+                                <div className="flex items-center gap-3 mb-6">
+                                    <div className="w-10 h-10 bg-blue-500/20 rounded-xl flex items-center justify-center">
+                                        <Globe className="w-5 h-5 text-blue-400" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-lg font-bold text-white">Translation Services</h3>
+                                        <p className="text-sm text-slate-400">Configure DeepL and Google Translate APIs</p>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="space-y-4 p-4 bg-slate-700/30 rounded-xl">
+                                        <h4 className="text-sm font-semibold text-blue-400 flex items-center gap-2">
+                                            <Globe className="w-4 h-4" />
+                                            DeepL Translation
+                                        </h4>
+                                        <div>
+                                            <label className="block text-xs text-slate-400 mb-1">DeepL API Key</label>
+                                            <div className="flex gap-2">
+                                                <input
+                                                    type="password"
+                                                    placeholder="Enter DeepL API key"
+                                                    className="flex-1 px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:border-violet-500 focus:outline-none"
+                                                />
+                                                <button className="px-3 py-2 bg-emerald-500/20 text-emerald-400 rounded-lg text-xs hover:bg-emerald-500/30">
+                                                    Test
+                                                </button>
+                                            </div>
+                                            <p className="text-xs text-slate-500 mt-1">Get key at: deepl.com/pro-api</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-4 p-4 bg-slate-700/30 rounded-xl">
+                                        <h4 className="text-sm font-semibold text-blue-400 flex items-center gap-2">
+                                            <Globe className="w-4 h-4" />
+                                            Google Cloud Translation
+                                        </h4>
+                                        <div>
+                                            <label className="block text-xs text-slate-400 mb-1">Project ID</label>
+                                            <input
+                                                type="text"
+                                                placeholder="Enter Google Cloud Project ID"
+                                                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:border-violet-500 focus:outline-none"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Application Settings Section */}
+                            <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6">
+                                <div className="flex items-center gap-3 mb-6">
+                                    <div className="w-10 h-10 bg-purple-500/20 rounded-xl flex items-center justify-center">
+                                        <Settings className="w-5 h-5 text-purple-400" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-lg font-bold text-white">Application Settings</h3>
+                                        <p className="text-sm text-slate-400">Core application configuration</p>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    <div className="space-y-4 p-4 bg-slate-700/30 rounded-xl">
+                                        <h4 className="text-sm font-semibold text-purple-400">App Configuration</h4>
+                                        <div>
+                                            <label className="block text-xs text-slate-400 mb-1">Application URL</label>
+                                            <input
+                                                type="url"
+                                                placeholder="https://your-domain.com"
+                                                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:border-violet-500 focus:outline-none"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs text-slate-400 mb-1">Application Name</label>
+                                            <input
+                                                type="text"
+                                                placeholder="DigitalMEng"
+                                                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:border-violet-500 focus:outline-none"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-4 p-4 bg-slate-700/30 rounded-xl">
+                                        <h4 className="text-sm font-semibold text-purple-400">Security</h4>
+                                        <div>
+                                            <label className="block text-xs text-slate-400 mb-1">JWT Secret</label>
+                                            <div className="flex gap-2">
+                                                <input
+                                                    type="password"
+                                                    placeholder="Enter JWT secret"
+                                                    className="flex-1 px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:border-violet-500 focus:outline-none"
+                                                />
+                                                <button className="px-3 py-2 bg-violet-500/20 text-violet-400 rounded-lg text-xs hover:bg-violet-500/30">
+                                                    Generate
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-4 p-4 bg-slate-700/30 rounded-xl">
+                                        <h4 className="text-sm font-semibold text-purple-400">Environment</h4>
+                                        <div>
+                                            <label className="block text-xs text-slate-400 mb-1">Node Environment</label>
+                                            <select className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:border-violet-500 focus:outline-none">
+                                                <option value="development">Development</option>
+                                                <option value="staging">Staging</option>
+                                                <option value="production">Production</option>
+                                            </select>
+                                        </div>
+                                        <div className="flex items-center justify-between mt-2">
+                                            <span className="text-xs text-slate-400">Debug Mode</span>
+                                            <button className="w-10 h-5 bg-slate-600 rounded-full relative">
+                                                <span className="absolute left-1 top-0.5 w-4 h-4 bg-white rounded-full"></span>
                                             </button>
                                         </div>
                                     </div>
+                                </div>
+                            </div>
+
+                            {/* Analytics & Monitoring Section */}
+                            <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6">
+                                <div className="flex items-center gap-3 mb-6">
+                                    <div className="w-10 h-10 bg-cyan-500/20 rounded-xl flex items-center justify-center">
+                                        <BarChart3 className="w-5 h-5 text-cyan-400" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-lg font-bold text-white">Analytics & Monitoring</h3>
+                                        <p className="text-sm text-slate-400">Google Analytics and error tracking configuration</p>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="space-y-4 p-4 bg-slate-700/30 rounded-xl">
+                                        <h4 className="text-sm font-semibold text-cyan-400 flex items-center gap-2">
+                                            <BarChart3 className="w-4 h-4" />
+                                            Google Analytics
+                                        </h4>
+                                        <div>
+                                            <label className="block text-xs text-slate-400 mb-1">Measurement ID</label>
+                                            <input
+                                                type="text"
+                                                placeholder="G-XXXXXXXXXX"
+                                                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:border-violet-500 focus:outline-none"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-4 p-4 bg-slate-700/30 rounded-xl">
+                                        <h4 className="text-sm font-semibold text-cyan-400 flex items-center gap-2">
+                                            <AlertTriangle className="w-4 h-4" />
+                                            Sentry Error Tracking
+                                        </h4>
+                                        <div>
+                                            <label className="block text-xs text-slate-400 mb-1">Sentry DSN</label>
+                                            <input
+                                                type="text"
+                                                placeholder="https://xxx@sentry.io/xxx"
+                                                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:border-violet-500 focus:outline-none"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Email & Notifications Section */}
+                            <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6">
+                                <div className="flex items-center gap-3 mb-6">
+                                    <div className="w-10 h-10 bg-rose-500/20 rounded-xl flex items-center justify-center">
+                                        <Mail className="w-5 h-5 text-rose-400" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-lg font-bold text-white">Email & Notifications</h3>
+                                        <p className="text-sm text-slate-400">Configure admin notification preferences</p>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    <div className="flex items-center justify-between p-4 bg-slate-700/30 rounded-xl">
+                                        <div>
+                                            <p className="text-sm text-white">New signup notifications</p>
+                                            <p className="text-xs text-slate-400">Email when new users register</p>
+                                        </div>
+                                        <button className="w-12 h-6 bg-violet-500 rounded-full relative">
+                                            <span className="absolute right-1 top-1 w-4 h-4 bg-white rounded-full"></span>
+                                        </button>
+                                    </div>
+                                    <div className="flex items-center justify-between p-4 bg-slate-700/30 rounded-xl">
+                                        <div>
+                                            <p className="text-sm text-white">Payment failure alerts</p>
+                                            <p className="text-xs text-slate-400">Alert on failed payments</p>
+                                        </div>
+                                        <button className="w-12 h-6 bg-violet-500 rounded-full relative">
+                                            <span className="absolute right-1 top-1 w-4 h-4 bg-white rounded-full"></span>
+                                        </button>
+                                    </div>
+                                    <div className="flex items-center justify-between p-4 bg-slate-700/30 rounded-xl">
+                                        <div>
+                                            <p className="text-sm text-white">System health reports</p>
+                                            <p className="text-xs text-slate-400">Daily system health email</p>
+                                        </div>
+                                        <button className="w-12 h-6 bg-slate-600 rounded-full relative">
+                                            <span className="absolute left-1 top-1 w-4 h-4 bg-white rounded-full"></span>
+                                        </button>
+                                    </div>
+                                    <div className="flex items-center justify-between p-4 bg-slate-700/30 rounded-xl">
+                                        <div>
+                                            <p className="text-sm text-white">API rate limit warnings</p>
+                                            <p className="text-xs text-slate-400">Alert when limits approach</p>
+                                        </div>
+                                        <button className="w-12 h-6 bg-violet-500 rounded-full relative">
+                                            <span className="absolute right-1 top-1 w-4 h-4 bg-white rounded-full"></span>
+                                        </button>
+                                    </div>
+                                    <div className="flex items-center justify-between p-4 bg-slate-700/30 rounded-xl">
+                                        <div>
+                                            <p className="text-sm text-white">Weekly usage summary</p>
+                                            <p className="text-xs text-slate-400">Platform usage statistics</p>
+                                        </div>
+                                        <button className="w-12 h-6 bg-violet-500 rounded-full relative">
+                                            <span className="absolute right-1 top-1 w-4 h-4 bg-white rounded-full"></span>
+                                        </button>
+                                    </div>
+                                    <div className="flex items-center justify-between p-4 bg-slate-700/30 rounded-xl">
+                                        <div>
+                                            <p className="text-sm text-white">Security alerts</p>
+                                            <p className="text-xs text-slate-400">Suspicious activity warnings</p>
+                                        </div>
+                                        <button className="w-12 h-6 bg-violet-500 rounded-full relative">
+                                            <span className="absolute right-1 top-1 w-4 h-4 bg-white rounded-full"></span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Save Button Footer */}
+                            <div className="flex items-center justify-between pt-4 border-t border-slate-700">
+                                <p className="text-sm text-slate-400">
+                                    <Clock className="w-4 h-4 inline mr-1" />
+                                    Last saved: Never
+                                </p>
+                                <div className="flex gap-3">
+                                    <button className="px-6 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors">
+                                        Reset to Defaults
+                                    </button>
+                                    <button className="px-6 py-2 bg-violet-500 hover:bg-violet-600 text-white rounded-lg transition-colors flex items-center gap-2">
+                                        <CheckCircle2 className="w-4 h-4" />
+                                        Save All Settings
+                                    </button>
                                 </div>
                             </div>
                         </div>

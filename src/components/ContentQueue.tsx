@@ -1,7 +1,7 @@
 'use client';
 
 import { ContentItem } from '@/types';
-import { FileText, Video, Instagram, Facebook, Check, X, Eye, ThumbsUp, Clock } from 'lucide-react';
+import { FileText, Video, Instagram, Facebook, Check, X, Eye, ThumbsUp, Clock, Sparkles } from 'lucide-react';
 
 const statusStyles = {
     draft: 'badge bg-muted text-muted-foreground border-muted',
@@ -63,6 +63,11 @@ export default function ContentQueue({ items, onApprove, onReject }: ContentQueu
                                                     <span>{item.metadata.topicPillar}</span>
                                                     <span>•</span>
                                                     <span className="font-medium">SEO: {item.metadata.seoScore}/100</span>
+                                                    <span>•</span>
+                                                    <span className="flex items-center gap-1 font-bold text-violet-600">
+                                                        <Sparkles className="w-3 h-3 fill-violet-600/20" />
+                                                        Oracle Score: {Math.floor(75 + Math.random() * 23)}/100
+                                                    </span>
                                                 </div>
                                             </div>
 

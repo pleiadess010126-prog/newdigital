@@ -1,10 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import {
-    Globe, Check, Search, ChevronDown,
-    Sparkles, X
-} from 'lucide-react';
+import { useState } from 'react';
+import { Globe, Sparkles, ChevronDown, Search, X, Check } from 'lucide-react';
+import { getTranslation } from '@/lib/i18n/translations';
 
 export interface ContentLanguage {
     code: string;
@@ -73,13 +71,16 @@ interface LanguageSettingsProps {
     primaryLanguage?: string;
     targetMarkets?: string[];
     onSave?: (settings: { primaryLanguage: string; targetMarkets: string[] }) => void;
+    currentLanguage: string;
 }
 
 export default function LanguageSettings({
     primaryLanguage = 'en',
     targetMarkets = [],
-    onSave
+    onSave,
+    currentLanguage
 }: LanguageSettingsProps) {
+    const t = (key: string) => getTranslation(currentLanguage, key);
     const [selectedPrimary, setSelectedPrimary] = useState(primaryLanguage);
     const [selectedMarkets, setSelectedMarkets] = useState<string[]>(targetMarkets);
     const [searchQuery, setSearchQuery] = useState('');
@@ -109,12 +110,12 @@ export default function LanguageSettings({
 
     // Popular market selections
     const popularSelections = [
-        { name: 'Global (Top 10)', codes: ['en', 'es', 'zh', 'hi', 'ar', 'pt', 'bn', 'ru', 'ja', 'fr'] },
-        { name: 'Europe', codes: ['en', 'de', 'fr', 'es', 'it', 'nl', 'pl', 'sv', 'pt'] },
-        { name: 'Asia Pacific', codes: ['zh', 'ja', 'ko', 'hi', 'id', 'vi', 'th', 'ms', 'fil'] },
-        { name: 'Americas', codes: ['en', 'es', 'pt'] },
-        { name: 'Middle East', codes: ['ar', 'tr', 'he', 'fa'] },
-        { name: 'South Asia', codes: ['hi', 'bn', 'ta', 'te', 'mr', 'gu', 'pa', 'ur'] },
+        { key: 'marketGlobal', codes: ['en', 'es', 'zh', 'hi', 'ar', 'pt', 'bn', 'ru', 'ja', 'fr'] },
+        { key: 'marketEurope', codes: ['en', 'de', 'fr', 'es', 'it', 'nl', 'pl', 'sv', 'pt'] },
+        { key: 'marketAsiaPacific', codes: ['zh', 'ja', 'ko', 'hi', 'id', 'vi', 'th', 'ms', 'fil'] },
+        { key: 'marketAmericas', codes: ['en', 'es', 'pt'] },
+        { key: 'marketMiddleEast', codes: ['ar', 'tr', 'he', 'fa'] },
+        { key: 'marketSouthAsia', codes: ['hi', 'bn', 'ta', 'te', 'mr', 'gu', 'pa', 'ur'] },
     ];
 
     return (
@@ -126,12 +127,12 @@ export default function LanguageSettings({
                         <Globe className="w-6 h-6 text-white" />
                     </div>
                     <div>
-                        <h2 className="text-xl font-bold text-white">Global Language Settings</h2>
-                        <p className="text-white/60 text-sm">Reach audiences worldwide in their native language</p>
+                        <h2 className="text-xl font-bold text-white">{t('languageSettingsTitle')}</h2>
+                        <p className="text-white/60 text-sm">{t('languageSettingsDesc')}</p>
                     </div>
                 </div>
                 <span className="px-3 py-1 bg-purple-500/20 text-purple-300 rounded-full text-sm font-medium">
-                    {ALL_CONTENT_LANGUAGES.length} Languages
+                    {ALL_CONTENT_LANGUAGES.length} {t('languagesCount')}
                 </span>
             </div>
 
@@ -139,10 +140,10 @@ export default function LanguageSettings({
             <div className="card p-5">
                 <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                     <Sparkles className="w-5 h-5 text-yellow-400" />
-                    Primary Content Language
+                    {t('primaryLanguageLabel')}
                 </h3>
                 <p className="text-white/60 text-sm mb-4">
-                    AI will generate content directly in this language (not translated)
+                    {t('primaryLanguageDesc')}
                 </p>
 
                 <button
@@ -163,22 +164,22 @@ export default function LanguageSettings({
             {/* Target Markets */}
             <div className="card p-5">
                 <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-white">Target Markets</h3>
-                    <span className="text-white/60 text-sm">{selectedMarkets.length} selected</span>
+                    <h3 className="text-lg font-semibold text-white">{t('targetMarketsLabel')}</h3>
+                    <span className="text-white/60 text-sm">{selectedMarkets.length} {t('selectedCount')}</span>
                 </div>
                 <p className="text-white/60 text-sm mb-4">
-                    Content will be automatically translated to these languages
+                    {t('targetMarketsDesc')}
                 </p>
 
                 {/* Quick Select */}
                 <div className="flex flex-wrap gap-2 mb-4">
                     {popularSelections.map(selection => (
                         <button
-                            key={selection.name}
+                            key={selection.key}
                             onClick={() => setSelectedMarkets(selection.codes.filter(c => c !== selectedPrimary))}
                             className="px-3 py-1.5 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white text-sm rounded-full transition-colors"
                         >
-                            {selection.name}
+                            {t(selection.key)}
                         </button>
                     ))}
                 </div>
@@ -211,7 +212,7 @@ export default function LanguageSettings({
                         type="text"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Search languages..."
+                        placeholder={t('searchLanguagesPlaceholder')}
                         className="input w-full pl-10"
                     />
                 </div>
@@ -227,10 +228,10 @@ export default function LanguageSettings({
                                 onClick={() => toggleMarket(lang.code)}
                                 disabled={isPrimary}
                                 className={`p-3 rounded-lg border transition-all flex items-center gap-2 text-left ${isPrimary
-                                        ? 'bg-yellow-500/10 border-yellow-500/30 cursor-not-allowed'
-                                        : isSelected
-                                            ? 'bg-purple-500/20 border-purple-500'
-                                            : 'bg-white/5 border-white/10 hover:border-white/30'
+                                    ? 'bg-yellow-500/10 border-yellow-500/30 cursor-not-allowed'
+                                    : isSelected
+                                        ? 'bg-purple-500/20 border-purple-500'
+                                        : 'bg-white/5 border-white/10 hover:border-white/30'
                                     }`}
                             >
                                 <span className="text-xl">{lang.flag}</span>
@@ -244,7 +245,7 @@ export default function LanguageSettings({
                                     <Check className="w-4 h-4 text-purple-400 flex-shrink-0" />
                                 )}
                                 {isPrimary && (
-                                    <span className="text-xs text-yellow-400 flex-shrink-0">Primary</span>
+                                    <span className="text-xs text-yellow-400 flex-shrink-0">{t('primaryBadge')}</span>
                                 )}
                             </button>
                         );
@@ -256,9 +257,9 @@ export default function LanguageSettings({
             <div className="card p-5">
                 <div className="flex items-center justify-between">
                     <div>
-                        <h3 className="text-lg font-semibold text-white">Auto-Translation</h3>
+                        <h3 className="text-lg font-semibold text-white">{t('autoTranslationLabel')}</h3>
                         <p className="text-white/60 text-sm mt-1">
-                            Automatically translate new content to all target markets
+                            {t('autoTranslationDesc')}
                         </p>
                     </div>
                     <button
@@ -280,10 +281,10 @@ export default function LanguageSettings({
                     <Globe className="w-8 h-8 text-blue-400" />
                     <div>
                         <p className="text-white font-medium">
-                            Your content reaches {((selectedMarkets.length + 1) / ALL_CONTENT_LANGUAGES.length * 100).toFixed(0)}% of global internet users
+                            {t('coverageSummary').replace('{percentage}', ((selectedMarkets.length + 1) / ALL_CONTENT_LANGUAGES.length * 100).toFixed(0))}
                         </p>
                         <p className="text-white/60 text-sm">
-                            Primary: {primaryLang?.name} • Translations: {selectedMarkets.length} languages
+                            {t('coverageDetailsPrimary')}{primaryLang?.name}{t('coverageDetailsTranslations')}{selectedMarkets.length}{t('coverageDetailsLanguages')}
                         </p>
                     </div>
                 </div>
@@ -296,7 +297,7 @@ export default function LanguageSettings({
                     className="px-6 py-2 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white rounded-lg font-medium transition-all flex items-center gap-2"
                 >
                     <Globe className="w-4 h-4" />
-                    Save Language Settings
+                    {t('saveLanguageSettings')}
                 </button>
             </div>
 
@@ -305,7 +306,7 @@ export default function LanguageSettings({
                 <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
                     <div className="card w-full max-w-2xl max-h-[80vh] overflow-hidden">
                         <div className="p-4 border-b border-white/10 flex items-center justify-between">
-                            <h3 className="text-lg font-semibold text-white">Select Primary Language</h3>
+                            <h3 className="text-lg font-semibold text-white">{t('selectPrimaryLanguage')}</h3>
                             <button
                                 onClick={() => setShowLanguageModal(false)}
                                 className="p-2 hover:bg-white/10 rounded-lg transition-colors"
@@ -318,7 +319,7 @@ export default function LanguageSettings({
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
                                 <input
                                     type="text"
-                                    placeholder="Search languages..."
+                                    placeholder={t('searchLanguagesPlaceholder')}
                                     className="input w-full pl-10"
                                 />
                             </div>
@@ -332,8 +333,8 @@ export default function LanguageSettings({
                                             setShowLanguageModal(false);
                                         }}
                                         className={`p-4 rounded-lg border transition-all flex items-center gap-3 ${lang.code === selectedPrimary
-                                                ? 'bg-purple-500/20 border-purple-500'
-                                                : 'bg-white/5 border-white/10 hover:border-white/30'
+                                            ? 'bg-purple-500/20 border-purple-500'
+                                            : 'bg-white/5 border-white/10 hover:border-white/30'
                                             }`}
                                     >
                                         <span className="text-2xl">{lang.flag}</span>
