@@ -37,6 +37,11 @@ export interface OnboardingData {
       appId: string;
       appSecret: string;
       accessToken: string;
+      pageAccessToken?: string;
+      instagramAccountId?: string;
+      facebookPageId?: string;
+      instagramUsername?: string;
+      facebookPageName?: string;
     };
     youtube?: {
       apiKey: string;

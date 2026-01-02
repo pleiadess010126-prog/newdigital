@@ -5,6 +5,8 @@ import { getSupervisorAgent, Task, RoadmapPlan } from './supervisor';
 import { createSmartScheduler, ScheduledPost } from '../scheduling/smartScheduler';
 import { TopicPillar } from '@/types';
 
+export type AutomationMode = 'full-auto' | 'approval' | 'manual';
+
 export interface AutopilotConfig {
     enabled: boolean;
     frequency: 'low' | 'medium' | 'high'; // low: 3/week, medium: 7/week, high: 14+/week
@@ -14,6 +16,17 @@ export interface AutopilotConfig {
     targetAudience: string;
     topicPillars: TopicPillar[];
     brandGuidelines?: string;
+
+    // New automation mode settings
+    automationMode: AutomationMode;  // 'full-auto' | 'approval' | 'manual'
+    autoGenerateContent: boolean;     // AI generates content automatically
+    autoGenerateVideos: boolean;      // AI generates videos from scripts automatically
+    autoSchedule: boolean;            // AI schedules content automatically
+    autoPublish: boolean;             // AI publishes without human review
+    contentReviewRequired: boolean;   // Pause for human review before publishing
+    videoReviewRequired: boolean;     // Pause for human review of videos
+    notifyOnGeneration: boolean;      // Send notification when content is generated
+    notifyOnPublish: boolean;         // Send notification when content is published
 }
 
 export class AutopilotManager {
@@ -160,7 +173,7 @@ let autopilotInstance: AutopilotManager | null = null;
 export function getAutopilotManager(initialConfig?: AutopilotConfig): AutopilotManager {
     if (!autopilotInstance) {
         if (!initialConfig) {
-            // Default fallback config
+            // Default fallback config - Approval mode (human-in-the-loop)
             initialConfig = {
                 enabled: false,
                 frequency: 'medium',
@@ -169,8 +182,25 @@ export function getAutopilotManager(initialConfig?: AutopilotConfig): AutopilotM
                 autoPublishEnabled: false,
                 targetAudience: 'Product Managers',
                 topicPillars: [
-                    { id: '1', name: 'AI Engineering', keywords: ['AI', 'LLM', 'Agents'] }
-                ]
+                    {
+                        id: '1',
+                        name: 'AI Engineering',
+                        keywords: ['AI', 'LLM', 'Agents'],
+                        description: 'AI and Machine Learning content',
+                        contentCount: 0,
+                        priority: 1
+                    }
+                ],
+                // Automation mode settings - default to "approval" mode
+                automationMode: 'approval',
+                autoGenerateContent: true,       // AI generates content
+                autoGenerateVideos: true,        // AI generates videos
+                autoSchedule: true,              // AI schedules content
+                autoPublish: false,              // Requires human approval before publish
+                contentReviewRequired: true,     // Human reviews content
+                videoReviewRequired: true,       // Human reviews videos
+                notifyOnGeneration: true,        // Notify when content is ready
+                notifyOnPublish: true,           // Notify when published
             };
         }
         autopilotInstance = new AutopilotManager(initialConfig);

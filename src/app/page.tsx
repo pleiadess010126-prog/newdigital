@@ -8,14 +8,60 @@ import {
   CheckCircle2, Rocket, TrendingUp, Globe, Play,
   Youtube, Instagram, Facebook, FileText, Bot, LineChart
 } from 'lucide-react';
+import LanguageDropdown from '@/components/LanguageDropdown';
+import { getTranslation, SUPPORTED_UI_LANGUAGES } from '@/lib/i18n/translations';
 
 export default function HomePage() {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [activeFeature, setActiveFeature] = useState(0);
+  const [currentLanguage, setCurrentLanguage] = useState('en');
+  const [languageDetected, setLanguageDetected] = useState(false);
 
+  // Helper function to get translations
+  const t = (key: string) => getTranslation(currentLanguage, key);
+
+  // Detect language from IP on mount
   useEffect(() => {
     setMounted(true);
+
+    // Check localStorage first for saved preference
+    const savedLang = localStorage.getItem('preferredLanguage');
+    if (savedLang && SUPPORTED_UI_LANGUAGES.some(l => l.code === savedLang)) {
+      setCurrentLanguage(savedLang);
+      setLanguageDetected(true);
+      return;
+    }
+
+    // Detect language from IP
+    const detectLanguage = async () => {
+      try {
+        const response = await fetch('/api/detect-language');
+        const data = await response.json();
+        if (data.success && data.language) {
+          // Only set if we have translations for this language
+          if (SUPPORTED_UI_LANGUAGES.some(l => l.code === data.language)) {
+            setCurrentLanguage(data.language);
+            localStorage.setItem('preferredLanguage', data.language);
+          }
+        }
+      } catch (error) {
+        console.log('Language detection failed, using default');
+      } finally {
+        setLanguageDetected(true);
+      }
+    };
+
+    detectLanguage();
+  }, []);
+
+  // Handle language change
+  const handleLanguageChange = (langCode: string) => {
+    setCurrentLanguage(langCode);
+    localStorage.setItem('preferredLanguage', langCode);
+  };
+
+  useEffect(() => {
     const onboardingData = localStorage.getItem('onboardingData');
     if (onboardingData) {
       router.push('/dashboard');
@@ -38,8 +84,11 @@ export default function HomePage() {
     { icon: Facebook, label: 'Facebook', color: 'from-blue-500 to-cyan-500' },
   ];
 
+  // Check if current language is RTL
+  const isRTL = ['ar', 'he', 'fa', 'ur'].includes(currentLanguage);
+
   return (
-    <div className="min-h-screen bg-[#0a0a0f] text-white overflow-hidden">
+    <div className={`min-h-screen bg-[#0a0a0f] text-white overflow-hidden ${isRTL ? 'rtl' : 'ltr'}`} dir={isRTL ? 'rtl' : 'ltr'}>
       {/* Animated Background */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         {/* Gradient orbs */}
@@ -71,24 +120,30 @@ export default function HomePage() {
             </div>
           </div>
           <div className="flex items-center gap-4">
+            {/* Language Dropdown */}
+            <LanguageDropdown
+              currentLanguage={currentLanguage}
+              onLanguageChange={handleLanguageChange}
+              variant="light"
+            />
             <button
               onClick={() => router.push('/login')}
               className="px-4 py-2 text-sm font-medium text-white/70 hover:text-white transition-colors"
             >
-              Login
+              {t('login')}
             </button>
             <button
               onClick={() => router.push('/dashboard')}
               className="px-4 py-2 text-sm font-medium text-white/70 hover:text-white transition-colors flex items-center gap-2"
             >
               <Play className="w-4 h-4" />
-              Demo
+              {t('demo')}
             </button>
             <button
               onClick={() => router.push('/signup')}
               className="px-5 py-2.5 text-sm font-semibold rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 transition-all shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40"
             >
-              Get Started
+              {t('getStarted')}
             </button>
           </div>
         </div>
@@ -103,22 +158,21 @@ export default function HomePage() {
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
             </span>
-            <span className="text-sm text-white/80">Powered by Amazon Bedrock AI</span>
+            <span className="text-sm text-white/80">{t('poweredBy')}</span>
           </div>
 
           {/* Main Headline */}
           <h1 className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tight leading-[0.9] mb-8">
-            <span className="block text-white">Autonomous</span>
+            <span className="block text-white">{t('heroTitle1')}</span>
             <span className="block text-transparent bg-clip-text bg-gradient-to-r from-violet-400 via-fuchsia-400 to-pink-400">
-              Marketing Engine
+              {t('heroTitle2')}
             </span>
           </h1>
 
           {/* Subheadline */}
           <p className="text-lg md:text-xl text-white/60 max-w-2xl mx-auto mb-12 leading-relaxed">
-            Scale your organic traffic 10x with AI-powered content generation.
-            Zero manual work. Zero risk of penalties.
-            <span className="text-white font-medium"> Fully automated.</span>
+            {t('heroSubtitle')}
+            <span className="text-white font-medium"> {t('fullyAutomated')}</span>
           </p>
 
           {/* CTA Buttons */}
@@ -128,15 +182,15 @@ export default function HomePage() {
               className="group px-8 py-4 text-lg font-semibold rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 transition-all shadow-2xl shadow-violet-500/30 hover:shadow-violet-500/50 flex items-center justify-center gap-3"
             >
               <Rocket className="w-5 h-5" />
-              Start Free Trial
-              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              {t('startFreeTrial')}
+              <ArrowRight className={`w-5 h-5 ${isRTL ? 'rotate-180 group-hover:-translate-x-1' : 'group-hover:translate-x-1'} transition-transform`} />
             </button>
             <button
               onClick={() => router.push('/dashboard')}
               className="px-8 py-4 text-lg font-semibold rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 backdrop-blur-sm transition-all flex items-center justify-center gap-3"
             >
               <Play className="w-5 h-5" />
-              Watch Demo
+              {t('watchDemo')}
             </button>
           </div>
 
@@ -164,10 +218,10 @@ export default function HomePage() {
         {/* Stats Bar */}
         <div className="mt-20 grid grid-cols-2 md:grid-cols-4 gap-6">
           {[
-            { value: '10x', label: 'Content Output', color: 'text-violet-400' },
-            { value: '90+', label: 'Day Automation', color: 'text-fuchsia-400' },
-            { value: '4+', label: 'AI Agents', color: 'text-pink-400' },
-            { value: '0%', label: 'Manual Work', color: 'text-cyan-400' },
+            { value: '10x', label: t('contentOutput'), color: 'text-violet-400' },
+            { value: '90+', label: t('dayAutomation'), color: 'text-fuchsia-400' },
+            { value: '4+', label: t('aiAgents'), color: 'text-pink-400' },
+            { value: '0%', label: t('manualWork'), color: 'text-cyan-400' },
           ].map((stat, index) => (
             <div
               key={index}
@@ -187,10 +241,10 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-5xl font-bold mb-4">
-              Fully <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-fuchsia-400">Automated</span> Marketing
+              {t('fullyAutomatedTitle').split(' ').slice(0, 1).join(' ')} <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-fuchsia-400">{t('fullyAutomatedTitle').split(' ').slice(1).join(' ')}</span>
             </h2>
             <p className="text-white/50 text-lg max-w-2xl mx-auto">
-              From content creation to publishing across all platforms — completely hands-off
+              {t('fullyAutomatedDesc')}
             </p>
           </div>
 
@@ -198,22 +252,22 @@ export default function HomePage() {
             {[
               {
                 icon: Sparkles,
-                title: 'AI Content Generation',
-                description: 'Claude-powered AI creates SEO-optimized blogs, YouTube scripts, and social posts automatically.',
+                title: t('aiContentGen'),
+                description: t('aiContentGenDesc'),
                 gradient: 'from-violet-500/20 to-purple-500/20',
                 iconBg: 'from-violet-500 to-purple-500',
               },
               {
                 icon: Shield,
-                title: 'Risk-Free Growth',
-                description: 'Smart velocity control prevents spam signals. Real-time monitoring of indexation and traffic patterns.',
+                title: t('riskFreeGrowth'),
+                description: t('riskFreeGrowthDesc'),
                 gradient: 'from-emerald-500/20 to-green-500/20',
                 iconBg: 'from-emerald-500 to-green-500',
               },
               {
                 icon: Zap,
-                title: 'Multi-Channel Publishing',
-                description: 'Auto-publish to WordPress, YouTube, Instagram, and Facebook. One click, all platforms.',
+                title: t('multiChannelPublishing'),
+                description: t('multiChannelPublishingDesc'),
                 gradient: 'from-cyan-500/20 to-blue-500/20',
                 iconBg: 'from-cyan-500 to-blue-500',
               },
@@ -238,16 +292,16 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-5xl font-bold mb-4">
-              How It <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-fuchsia-400">Works</span>
+              {t('howItWorks').split(' ').slice(0, 2).join(' ')} <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-fuchsia-400">{t('howItWorks').split(' ').slice(2).join(' ') || t('howItWorks').split(' ').slice(-1)}</span>
             </h2>
           </div>
 
           <div className="grid md:grid-cols-4 gap-8">
             {[
-              { step: '01', title: 'Connect', desc: 'Link your website and social accounts', icon: Globe },
-              { step: '02', title: 'Configure', desc: 'Set your topics and publishing velocity', icon: Layers },
-              { step: '03', title: 'Generate', desc: 'AI creates 90 days of content', icon: Bot },
-              { step: '04', title: 'Grow', desc: 'Watch your traffic increase 10x', icon: TrendingUp },
+              { step: '01', title: t('connect'), desc: t('connectDesc'), icon: Globe },
+              { step: '02', title: t('configure'), desc: t('configureDesc'), icon: Layers },
+              { step: '03', title: t('generate'), desc: t('generateDesc'), icon: Bot },
+              { step: '04', title: t('grow'), desc: t('growDesc'), icon: TrendingUp },
             ].map((item, index) => (
               <div key={index} className="relative text-center">
                 <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-violet-600 to-fuchsia-600 mb-6">
@@ -256,8 +310,11 @@ export default function HomePage() {
                 <div className="text-xs font-bold text-violet-400 mb-2">{item.step}</div>
                 <h3 className="text-xl font-bold mb-2">{item.title}</h3>
                 <p className="text-white/50 text-sm">{item.desc}</p>
-                {index < 3 && (
+                {index < 3 && !isRTL && (
                   <div className="hidden md:block absolute top-8 left-[60%] w-[80%] h-[2px] bg-gradient-to-r from-violet-500/50 to-transparent" />
+                )}
+                {index < 3 && isRTL && (
+                  <div className="hidden md:block absolute top-8 right-[60%] w-[80%] h-[2px] bg-gradient-to-l from-violet-500/50 to-transparent" />
                 )}
               </div>
             ))}
@@ -291,16 +348,16 @@ export default function HomePage() {
         <div className="max-w-4xl mx-auto px-6 text-center">
           <div className="p-12 rounded-3xl bg-gradient-to-br from-violet-600/20 to-fuchsia-600/20 border border-white/10 backdrop-blur-xl">
             <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              Ready to Automate Your Marketing?
+              {t('readyToAutomate')}
             </h2>
             <p className="text-white/60 mb-8 text-lg">
-              Join businesses scaling their organic traffic with zero manual effort
+              {t('joinBusinesses')}
             </p>
             <button
               onClick={() => router.push('/onboarding')}
               className="px-10 py-5 text-lg font-semibold rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 transition-all shadow-2xl shadow-violet-500/30 hover:shadow-violet-500/50"
             >
-              Start Your Free Trial
+              {t('startFreeTrial')}
             </button>
           </div>
         </div>
@@ -309,7 +366,7 @@ export default function HomePage() {
       {/* Footer */}
       <footer className="relative z-10 py-8 border-t border-white/10">
         <div className="max-w-7xl mx-auto px-6 text-center text-white/30 text-sm">
-          © 2025 DigitalMEng. Autonomous Organic Marketing Engine.
+          {t('copyright')}
         </div>
       </footer>
     </div>

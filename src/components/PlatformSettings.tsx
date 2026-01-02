@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Link2, Check, X, ExternalLink, AlertTriangle, RefreshCw,
-    Settings, Key, ChevronRight, Unlink, TestTube
+    Settings, Key, ChevronRight, Unlink, TestTube, Instagram, Facebook
 } from 'lucide-react';
+import MetaSetupWizard from './MetaSetupWizard';
 
 interface PlatformConnection {
     id: string;
@@ -102,6 +103,91 @@ export default function PlatformSettings({ onSave }: PlatformSettingsProps) {
     const [selectedPlatform, setSelectedPlatform] = useState<PlatformConnection | null>(null);
     const [isConnecting, setIsConnecting] = useState<string | null>(null);
     const [showCredentialsModal, setShowCredentialsModal] = useState(false);
+    const [showMetaWizard, setShowMetaWizard] = useState(false);
+    const [metaCredentials, setMetaCredentials] = useState<{
+        appId?: string;
+        accessToken?: string;
+        instagramUsername?: string;
+        facebookPageName?: string;
+        instagramAccountId?: string;
+        facebookPageId?: string;
+    } | null>(null);
+
+    // Load saved Meta credentials from localStorage on mount
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const savedCredentials = localStorage.getItem('meta_credentials');
+            if (savedCredentials) {
+                try {
+                    const credentials = JSON.parse(savedCredentials);
+                    setMetaCredentials(credentials);
+
+                    // Update platform statuses based on saved credentials
+                    setPlatforms(prev => prev.map(p => {
+                        if (p.id === 'instagram' && credentials.instagramAccountId) {
+                            return {
+                                ...p,
+                                status: 'connected' as const,
+                                account: credentials.instagramUsername ? `@${credentials.instagramUsername}` : p.account
+                            };
+                        }
+                        if (p.id === 'facebook' && credentials.facebookPageId) {
+                            return {
+                                ...p,
+                                status: 'connected' as const,
+                                account: credentials.facebookPageName || p.account
+                            };
+                        }
+                        return p;
+                    }));
+                } catch (e) {
+                    console.error('Failed to parse saved Meta credentials:', e);
+                }
+            }
+        }
+    }, []);
+
+    // Handle Meta credentials save from wizard
+    const handleMetaCredentialsSave = (credentials: {
+        appId: string;
+        appSecret: string;
+        accessToken: string;
+        pageAccessToken: string;
+        instagramAccountId: string;
+        facebookPageId: string;
+        instagramUsername?: string;
+        facebookPageName?: string;
+    }) => {
+        setMetaCredentials(credentials);
+        setShowMetaWizard(false);
+
+        // Update platform statuses
+        setPlatforms(prev => prev.map(p => {
+            if (p.id === 'instagram' && credentials.instagramAccountId) {
+                return {
+                    ...p,
+                    status: 'connected' as const,
+                    lastSync: 'Just now',
+                    account: credentials.instagramUsername ? `@${credentials.instagramUsername}` : p.account
+                };
+            }
+            if (p.id === 'facebook' && credentials.facebookPageId) {
+                return {
+                    ...p,
+                    status: 'connected' as const,
+                    lastSync: 'Just now',
+                    account: credentials.facebookPageName || p.account
+                };
+            }
+            return p;
+        }));
+
+        // Save to localStorage for persistence
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('meta_credentials', JSON.stringify(credentials));
+        }
+    };
+
 
     const getStatusColor = (status: PlatformConnection['status']) => {
         switch (status) {
@@ -126,9 +212,15 @@ export default function PlatformSettings({ onSave }: PlatformSettingsProps) {
     };
 
     const handleConnect = async (platformId: string) => {
+        // For Instagram and Facebook, use the Meta Setup Wizard
+        if (platformId === 'instagram' || platformId === 'facebook') {
+            setShowMetaWizard(true);
+            return;
+        }
+
         setIsConnecting(platformId);
 
-        // Simulate OAuth/connection flow
+        // Simulate OAuth/connection flow for other platforms
         await new Promise(resolve => setTimeout(resolve, 2000));
 
         setPlatforms(prev => prev.map(p =>
@@ -310,8 +402,8 @@ export default function PlatformSettings({ onSave }: PlatformSettingsProps) {
                                     <span
                                         key={i}
                                         className={`px-2 py-1 rounded text-xs ${platform.status === 'connected'
-                                                ? 'bg-purple-500/10 text-purple-300'
-                                                : 'bg-white/5 text-white/40'
+                                            ? 'bg-purple-500/10 text-purple-300'
+                                            : 'bg-white/5 text-white/40'
                                             }`}
                                     >
                                         {feature}
@@ -413,6 +505,15 @@ export default function PlatformSettings({ onSave }: PlatformSettingsProps) {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* Meta Setup Wizard */}
+            {showMetaWizard && (
+                <MetaSetupWizard
+                    onComplete={handleMetaCredentialsSave}
+                    onCancel={() => setShowMetaWizard(false)}
+                    existingCredentials={metaCredentials || undefined}
+                />
             )}
         </div>
     );

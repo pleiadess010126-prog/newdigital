@@ -40,6 +40,8 @@ import BrandMonitoring from '@/components/BrandMonitoring';
 import ImageGenerationModal from '@/components/ImageGenerationModal';
 import ContentRepurposingModal from '@/components/ContentRepurposingModal';
 import AutopilotPanel from '@/components/AutopilotPanel';
+import LanguageDropdown from '@/components/LanguageDropdown';
+import { SUPPORTED_UI_LANGUAGES, getTranslation } from '@/lib/i18n/translations';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { canUseFeature } from '@/lib/billing/permissions';
@@ -51,7 +53,7 @@ import {
     mockTopicPillars,
     mockRoadmap,
 } from '@/lib/mockData';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Image from 'next/image';
 import {
     Folder, TrendingUp, Calendar, Activity, Sparkles, Zap, Rocket,
@@ -64,7 +66,7 @@ import type { ContentItem, Campaign } from '@/types';
 
 type TabType = 'overview' | 'content' | 'analytics' | 'automation' | 'tools' | 'settings';
 
-export default function DashboardPage() {
+function DashboardContent() {
     const router = useRouter();
     const { user, logout, isAuthenticated } = useAuth();
     const [campaign, setCampaign] = useState(mockCampaign);
@@ -85,6 +87,21 @@ export default function DashboardPage() {
     const [settingsTab, setSettingsTab] = useState<string>('brand');
     const [toolsTab, setToolsTab] = useState<string>('influencers');
     const [showUserMenu, setShowUserMenu] = useState(false);
+    const [currentLanguage, setCurrentLanguage] = useState('en');
+
+    // Load language preference on mount
+    useEffect(() => {
+        const savedLang = localStorage.getItem('preferredLanguage');
+        if (savedLang && SUPPORTED_UI_LANGUAGES.some(l => l.code === savedLang)) {
+            setCurrentLanguage(savedLang);
+        }
+    }, []);
+
+    // Handle language change
+    const handleLanguageChange = (langCode: string) => {
+        setCurrentLanguage(langCode);
+        localStorage.setItem('preferredLanguage', langCode);
+    };
 
     const searchParams = useSearchParams();
 
@@ -134,13 +151,16 @@ export default function DashboardPage() {
         }));
     };
 
+    // Translation helper
+    const t = (key: string) => getTranslation(currentLanguage, key);
+
     const tabs = [
-        { id: 'overview' as TabType, label: 'Overview', icon: LayoutDashboard, color: 'bg-violet-600' },
-        { id: 'content' as TabType, label: 'Content', icon: FileText, color: 'bg-blue-600' },
-        { id: 'analytics' as TabType, label: 'Analytics', icon: BarChart3, color: 'bg-emerald-600' },
-        { id: 'automation' as TabType, label: 'Automation', icon: Bot, color: 'bg-orange-600' },
-        { id: 'tools' as TabType, label: 'Tools', icon: Wrench, color: 'bg-fuchsia-600' },
-        { id: 'settings' as TabType, label: 'Settings', icon: Settings, color: 'bg-slate-600' },
+        { id: 'overview' as TabType, label: t('overview'), icon: LayoutDashboard, color: 'bg-violet-600' },
+        { id: 'content' as TabType, label: t('content'), icon: FileText, color: 'bg-blue-600' },
+        { id: 'analytics' as TabType, label: t('analytics'), icon: BarChart3, color: 'bg-emerald-600' },
+        { id: 'automation' as TabType, label: t('automation'), icon: Bot, color: 'bg-orange-600' },
+        { id: 'tools' as TabType, label: t('tools'), icon: Wrench, color: 'bg-fuchsia-600' },
+        { id: 'settings' as TabType, label: t('settings'), icon: Settings, color: 'bg-slate-600' },
     ];
 
     return (
@@ -159,19 +179,27 @@ export default function DashboardPage() {
                         />
                         <div>
                             <h1 className="text-xl font-bold">{campaign.name}</h1>
-                            <p className="text-sm text-white/60">Autonomous Marketing Engine</p>
+                            <p className="text-sm text-white/60">{t('autonomousMarketingEngine')}</p>
                         </div>
                     </div>
                     <div className="flex items-center gap-3">
                         <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 text-sm font-medium border border-emerald-500/30">
-                            ● Active
+                            ● {t('active')}
                         </span>
                         {canUseFeature(user?.plan, 'autopilot') && (
                             <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-violet-500/20 text-violet-400 text-sm font-medium border border-violet-500/30">
                                 <Rocket className="w-3.5 h-3.5" />
-                                Autopilot On
+                                {t('autopilotOn')}
                             </div>
                         )}
+
+                        {/* Language Dropdown */}
+                        <LanguageDropdown
+                            currentLanguage={currentLanguage}
+                            onLanguageChange={handleLanguageChange}
+                            variant="dark"
+                            compact
+                        />
 
                         {/* User Menu */}
                         <div className="relative">
@@ -210,14 +238,14 @@ export default function DashboardPage() {
                                             className="w-full flex items-center gap-3 px-3 py-2 text-slate-700 hover:bg-slate-100 rounded-lg transition-colors text-left"
                                         >
                                             <Settings className="w-4 h-4" />
-                                            <span className="text-sm">Settings</span>
+                                            <span className="text-sm">{t('settings')}</span>
                                         </button>
                                         <button
                                             onClick={() => router.push('/pricing')}
                                             className="w-full flex items-center gap-3 px-3 py-2 text-slate-700 hover:bg-slate-100 rounded-lg transition-colors text-left"
                                         >
                                             <Zap className="w-4 h-4" />
-                                            <span className="text-sm">Upgrade Plan</span>
+                                            <span className="text-sm">{t('upgradePlan')}</span>
                                         </button>
                                         {/* Admin Link - Only shown for admin users */}
                                         {user?.isAdmin && (
@@ -227,7 +255,7 @@ export default function DashboardPage() {
                                                     className="w-full flex items-center gap-3 px-3 py-2 text-violet-600 hover:bg-violet-50 rounded-lg transition-colors text-left"
                                                 >
                                                     <Shield className="w-4 h-4" />
-                                                    <span className="text-sm font-medium">Admin Console</span>
+                                                    <span className="text-sm font-medium">{t('adminConsole')}</span>
                                                 </button>
                                             </>
                                         )}
@@ -237,7 +265,7 @@ export default function DashboardPage() {
                                             className="w-full flex items-center gap-3 px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors text-left"
                                         >
                                             <LogOut className="w-4 h-4" />
-                                            <span className="text-sm">Logout</span>
+                                            <span className="text-sm">{t('logout')}</span>
                                         </button>
                                     </div>
                                 </div>
@@ -272,263 +300,175 @@ export default function DashboardPage() {
             </div>
 
             {/* Main Content */}
-            <div className="px-8 py-6">
+            <div className="px-6 py-4">
                 {/* Overview Tab */}
                 {activeTab === 'overview' && (
-                    <div className="space-y-6">
-                        {/* Welcome Banner */}
-                        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-violet-600 via-fuchsia-600 to-violet-600 p-8 text-white">
-                            <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwwLjEpIiBzdHJva2Utd2lkdGg9IjEiLz48L3BhdHRlcm4+PC9kZWZzPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9InVybCgjZ3JpZCkiLz48L3N2Zz4=')] opacity-30" />
-                            <div className="relative flex items-center justify-between">
-                                <div>
-                                    <div className="flex items-center gap-3 mb-2">
-                                        <div className="w-3 h-3 bg-emerald-400 rounded-full animate-pulse" />
-                                        <span className="text-sm font-medium text-white/80">System Active</span>
-                                    </div>
-                                    <h2 className="text-3xl font-black mb-2">Welcome back, {user?.name?.split(' ')[0] || 'Creator'}! 👋</h2>
-                                    <p className="text-white/70 max-w-xl">Your autonomous marketing engine is working. Here's your performance snapshot for today.</p>
-                                </div>
-                                <div className="hidden lg:flex items-center gap-4">
-                                    <div className="text-center p-4 bg-white/10 rounded-2xl backdrop-blur-sm">
-                                        <div className="text-4xl font-black">{campaign.stats.totalContent}</div>
-                                        <div className="text-sm text-white/70">Total Content</div>
-                                    </div>
-                                    <div className="text-center p-4 bg-white/10 rounded-2xl backdrop-blur-sm">
-                                        <div className="text-4xl font-black text-emerald-300">+{campaign.stats.trafficGrowth}%</div>
-                                        <div className="text-sm text-white/70">Growth</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Quick Stats with Mini Charts */}
-                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="space-y-3">
+                        {/* Key Metrics Row */}
+                        <div className="grid grid-cols-4 gap-3">
                             {[
-                                { label: 'Total Content', value: campaign.stats.totalContent.toLocaleString(), change: '+12%', positive: true, icon: FileText, gradient: 'from-violet-500 to-purple-600', lightBg: 'bg-violet-50', chartColor: '#8b5cf6' },
-                                { label: 'Published', value: campaign.stats.publishedThisMonth.toLocaleString(), change: '+23.5%', positive: true, icon: Globe, gradient: 'from-blue-500 to-cyan-500', lightBg: 'bg-blue-50', chartColor: '#3b82f6' },
-                                { label: 'Organic Traffic', value: campaign.stats.organicTraffic.toLocaleString(), change: `+${campaign.stats.trafficGrowth}%`, positive: true, icon: TrendingUp, gradient: 'from-emerald-500 to-teal-500', lightBg: 'bg-emerald-50', chartColor: '#10b981' },
-                                { label: 'Engagement Rate', value: '4.8%', change: '+0.5%', positive: true, icon: Activity, gradient: 'from-orange-500 to-amber-500', lightBg: 'bg-orange-50', chartColor: '#f97316' },
-                            ].map((stat, index) => (
-                                <div
-                                    key={index}
-                                    className="group relative bg-white rounded-2xl border border-slate-200 p-5 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden"
-                                >
-                                    <div className={`absolute top-0 right-0 w-24 h-24 ${stat.lightBg} rounded-bl-[100px] opacity-50 group-hover:opacity-100 transition-opacity`} />
-                                    <div className="relative">
-                                        <div className="flex items-start justify-between mb-4">
-                                            <div className={`p-3 rounded-xl bg-gradient-to-br ${stat.gradient} shadow-lg`}>
-                                                <stat.icon className="w-5 h-5 text-white" />
-                                            </div>
-                                            <div className={`flex items-center gap-1 text-xs font-bold ${stat.positive ? 'text-emerald-600' : 'text-red-600'}`}>
-                                                {stat.positive ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
-                                                {stat.change}
-                                            </div>
+                                { label: t('totalContent'), value: campaign.stats.totalContent.toLocaleString(), change: '+12%', icon: FileText, gradient: 'from-violet-500 to-purple-600', tab: 'content' as TabType },
+                                { label: t('published'), value: campaign.stats.publishedThisMonth.toLocaleString(), change: '+23.5%', icon: Globe, gradient: 'from-blue-500 to-cyan-600', tab: 'content' as TabType },
+                                { label: t('organicTraffic'), value: campaign.stats.organicTraffic.toLocaleString(), change: `+${campaign.stats.trafficGrowth}%`, icon: TrendingUp, gradient: 'from-emerald-500 to-teal-600', tab: 'analytics' as TabType },
+                                { label: t('engagement'), value: '4.8%', change: '+0.5%', icon: Activity, gradient: 'from-amber-500 to-orange-600', tab: 'analytics' as TabType },
+                            ].map((metric, idx) => (
+                                <button key={idx} onClick={() => setActiveTab(metric.tab)} className="bg-white rounded-xl p-4 shadow-sm border border-slate-100 text-left hover:shadow-md hover:border-violet-200 transition-all group">
+                                    <div className="flex items-center justify-between mb-3">
+                                        <div className={`p-2 rounded-lg bg-gradient-to-br ${metric.gradient}`}>
+                                            <metric.icon className="w-5 h-5 text-white" />
                                         </div>
-                                        <div className="text-3xl font-black text-slate-800 mb-1">{stat.value}</div>
-                                        <div className="text-sm text-slate-500 font-medium">{stat.label}</div>
-                                        {/* Mini Sparkline */}
-                                        <div className="mt-3 flex items-end gap-0.5 h-8">
-                                            {[40, 65, 45, 80, 55, 90, 70, 85, 60, 95].map((h, i) => (
-                                                <div
-                                                    key={i}
-                                                    className="flex-1 rounded-t transition-all duration-300"
-                                                    style={{
-                                                        height: `${h}%`,
-                                                        backgroundColor: i === 9 ? stat.chartColor : `${stat.chartColor}40`
-                                                    }}
-                                                />
-                                            ))}
-                                        </div>
+                                        <span className="text-xs font-semibold px-2 py-1 rounded-full bg-emerald-50 text-emerald-600">{metric.change}</span>
                                     </div>
-                                </div>
+                                    <div className="text-2xl font-bold text-slate-900">{metric.value}</div>
+                                    <div className="text-sm text-slate-500 flex items-center justify-between mt-1">
+                                        <span>{metric.label}</span>
+                                        <span className="text-violet-500 opacity-0 group-hover:opacity-100 transition-opacity text-xs">{t('view')} →</span>
+                                    </div>
+                                </button>
                             ))}
                         </div>
 
-                        {/* Platform Performance */}
-                        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-                            {[
-                                { name: 'WordPress', icon: Globe, views: '45,892', growth: 23.5, bgColor: 'bg-blue-600', ring: 'stroke-blue-500' },
-                                { name: 'YouTube', icon: Youtube, views: '127,890', growth: 67.2, bgColor: 'bg-red-600', ring: 'stroke-red-500' },
-                                { name: 'Instagram', icon: Instagram, views: '234,567', growth: 89.4, bgColor: 'bg-gradient-to-br from-purple-600 to-pink-600', ring: 'stroke-pink-500' },
-                                { name: 'Facebook', icon: Facebook, views: '78,234', growth: 34.8, bgColor: 'bg-blue-700', ring: 'stroke-blue-700' },
-                                { name: 'LinkedIn', icon: Users, views: '12,456', growth: 45.2, bgColor: 'bg-sky-700', ring: 'stroke-sky-600' },
-                            ].map((platform, index) => (
-                                <div
-                                    key={index}
-                                    className="group bg-white rounded-2xl border border-slate-200 p-5 hover:shadow-xl hover:-translate-y-1 transition-all duration-300"
-                                >
-                                    <div className="flex items-center gap-3 mb-4">
-                                        <div className={`p-2.5 rounded-xl ${platform.bgColor}`}>
-                                            <platform.icon className="w-5 h-5 text-white" />
-                                        </div>
-                                        <span className="font-bold text-slate-700">{platform.name}</span>
-                                    </div>
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <div className="text-2xl font-black text-slate-800">{platform.views}</div>
-                                            <div className="text-xs text-emerald-600 font-bold">+{platform.growth}%</div>
-                                        </div>
-                                        {/* Progress Ring */}
-                                        <div className="relative w-12 h-12">
-                                            <svg className="w-12 h-12 -rotate-90">
-                                                <circle cx="24" cy="24" r="20" fill="none" stroke="#e2e8f0" strokeWidth="4" />
-                                                <circle
-                                                    cx="24" cy="24" r="20" fill="none"
-                                                    className={platform.ring}
-                                                    strokeWidth="4"
-                                                    strokeLinecap="round"
-                                                    strokeDasharray={`${platform.growth * 1.25} 125`}
-                                                />
-                                            </svg>
-                                            <div className="absolute inset-0 flex items-center justify-center text-xs font-bold text-slate-600">
-                                                {Math.round(platform.growth)}%
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-
-                        {/* Main Grid */}
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        {/* AI Agents + Quick Actions Row */}
+                        <div className="grid grid-cols-12 gap-3">
                             {/* AI Agents Panel */}
-                            <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                                <div className="p-5 border-b border-slate-100 bg-gradient-to-r from-violet-50 to-fuchsia-50">
-                                    <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                                        <div className="p-2 bg-violet-500 rounded-lg">
-                                            <Bot className="w-4 h-4 text-white" />
+                            <button onClick={() => setActiveTab('automation')} className="col-span-9 bg-gradient-to-br from-slate-900 via-violet-950 to-slate-900 rounded-xl p-5 text-left hover:shadow-xl transition-all group">
+                                <div className="flex items-center justify-between mb-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2.5 rounded-lg bg-violet-500/20">
+                                            <Bot className="w-6 h-6 text-violet-400" />
                                         </div>
-                                        AI Agents Status
-                                        <span className="ml-auto px-3 py-1 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-full">
-                                            {mockAIAgents.filter(a => a.status === 'working').length} Active
+                                        <div>
+                                            <h3 className="font-bold text-white text-lg">{t('aiContentAgents')}</h3>
+                                            <p className="text-xs text-slate-400">{t('autonomousMarketingEngine')}</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 text-xs font-medium border border-emerald-500/30">
+                                            {mockAIAgents.filter(a => a.status === 'working').length} {t('active')}
                                         </span>
-                                    </h3>
-                                </div>
-                                <div className="p-5">
-                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                                        {mockAIAgents.map((agent, index) => {
-                                            const colors = [
-                                                { bg: 'bg-violet-100', text: 'text-violet-700', dot: 'bg-violet-500' },
-                                                { bg: 'bg-emerald-100', text: 'text-emerald-700', dot: 'bg-emerald-500' },
-                                                { bg: 'bg-blue-100', text: 'text-blue-700', dot: 'bg-blue-500' },
-                                                { bg: 'bg-orange-100', text: 'text-orange-700', dot: 'bg-orange-500' },
-                                                { bg: 'bg-pink-100', text: 'text-pink-700', dot: 'bg-pink-500' },
-                                                { bg: 'bg-cyan-100', text: 'text-cyan-700', dot: 'bg-cyan-500' },
-                                            ];
-                                            const color = colors[index % colors.length];
-                                            return (
-                                                <div
-                                                    key={agent.id}
-                                                    className={`p-4 rounded-xl ${color.bg} border border-transparent hover:border-slate-200 transition-all`}
-                                                >
-                                                    <div className="flex items-center gap-2 mb-3">
-                                                        <div className={`w-2.5 h-2.5 rounded-full ${agent.status === 'working' ? `${color.dot} animate-pulse` : 'bg-slate-300'}`} />
-                                                        <span className={`text-sm font-bold ${color.text}`}>{agent.name}</span>
-                                                    </div>
-                                                    <div className="flex items-center justify-between">
-                                                        <span className="text-xs text-slate-500">{agent.tasksCompleted} tasks</span>
-                                                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${agent.status === 'working'
-                                                                ? 'bg-emerald-500 text-white'
-                                                                : 'bg-slate-200 text-slate-600'
-                                                            }`}>
-                                                            {agent.status === 'working' ? '● Live' : 'Idle'}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
+                                        <span className="text-violet-400 text-sm opacity-0 group-hover:opacity-100 transition-opacity">{t('manage')} →</span>
                                     </div>
                                 </div>
-                            </div>
-
-                            {/* Quick Actions & Health */}
-                            <div className="space-y-4">
-                                {/* Quick Actions */}
-                                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-                                    <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider mb-4">Quick Actions</h3>
-                                    <div className="space-y-2">
-                                        <button
-                                            onClick={() => setShowBatchGenerate(true)}
-                                            className="w-full p-3 rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white font-semibold flex items-center gap-3 hover:shadow-lg hover:shadow-violet-500/30 transition-all"
-                                        >
-                                            <Sparkles className="w-5 h-5" />
-                                            Generate Content
-                                        </button>
-                                        <button
-                                            onClick={() => setActiveTab('content')}
-                                            className="w-full p-3 rounded-xl bg-slate-100 text-slate-700 font-semibold flex items-center gap-3 hover:bg-slate-200 transition-all"
-                                        >
-                                            <FileText className="w-5 h-5" />
-                                            View Content Queue
-                                        </button>
-                                        <button
-                                            onClick={() => setActiveTab('analytics')}
-                                            className="w-full p-3 rounded-xl bg-slate-100 text-slate-700 font-semibold flex items-center gap-3 hover:bg-slate-200 transition-all"
-                                        >
-                                            <BarChart3 className="w-5 h-5" />
-                                            View Analytics
-                                        </button>
-                                    </div>
+                                <div className="grid grid-cols-6 gap-3">
+                                    {mockAIAgents.map((agent) => (
+                                        <div key={agent.id} className="p-3 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <div className={`w-2.5 h-2.5 rounded-full ${agent.status === 'working' ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`} />
+                                                <span className="text-sm font-medium text-white truncate">{agent.name}</span>
+                                            </div>
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-xs text-slate-400">{agent.tasksCompleted} {t('tasks')}</span>
+                                                <span className={`text-[10px] font-medium ${agent.status === 'working' ? 'text-emerald-400' : 'text-slate-500'}`}>
+                                                    {agent.status === 'working' ? t('running') : t('idle')}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
+                            </button>
 
-                                {/* System Health */}
-                                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-                                    <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider mb-4 flex items-center gap-2">
-                                        <Activity className="w-4 h-4 text-emerald-500" />
-                                        System Health
-                                    </h3>
-                                    <div className="space-y-4">
+                            {/* Quick Actions */}
+                            <div className="col-span-3 space-y-2">
+                                <button
+                                    onClick={() => setShowBatchGenerate(true)}
+                                    className="w-full p-3 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 text-white hover:shadow-lg hover:scale-[1.02] transition-all"
+                                >
+                                    <div className="flex items-center gap-2">
+                                        <div className="p-1.5 bg-white/20 rounded-md">
+                                            <Sparkles className="w-4 h-4" />
+                                        </div>
+                                        <div className="text-left">
+                                            <p className="font-semibold text-base">{t('generateContent')}</p>
+                                            <p className="text-xs text-white/80">{t('createAIContent')}</p>
+                                        </div>
+                                    </div>
+                                </button>
+                                <button onClick={() => setActiveTab('analytics')} className="w-full bg-white rounded-lg p-3 shadow-sm border border-slate-100 text-left hover:border-violet-200 transition-all group">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <div className="flex items-center gap-1.5">
+                                            <Activity className="w-4 h-4 text-emerald-500" />
+                                            <span className="text-sm font-semibold text-slate-700">{t('systemHealth')}</span>
+                                        </div>
+                                        <span className="text-violet-500 text-xs opacity-0 group-hover:opacity-100 transition-opacity">{t('details')} →</span>
+                                    </div>
+                                    <div className="space-y-1.5">
                                         {[
-                                            { label: 'Indexation', value: campaign.stats.indexationRate, color: 'from-emerald-500 to-teal-500' },
-                                            { label: 'Risk Score', value: campaign.stats.riskScore, color: 'from-violet-500 to-purple-500' },
-                                            { label: 'AI Uptime', value: 99.9, color: 'from-blue-500 to-cyan-500' },
-                                        ].map((item, idx) => (
-                                            <div key={idx}>
-                                                <div className="flex justify-between text-sm mb-2">
-                                                    <span className="text-slate-600 font-medium">{item.label}</span>
-                                                    <span className="font-bold text-slate-800">{item.value}%</span>
+                                            { label: 'SEO', value: campaign.stats.riskScore },
+                                            { label: 'Index', value: campaign.stats.indexationRate },
+                                            { label: 'AI', value: 99.9 },
+                                        ].map((h, i) => (
+                                            <div key={i}>
+                                                <div className="flex justify-between text-xs mb-1">
+                                                    <span className="text-slate-500">{h.label}</span>
+                                                    <span className="font-semibold text-slate-700">{h.value}%</span>
                                                 </div>
-                                                <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                                                    <div
-                                                        className={`h-full bg-gradient-to-r ${item.color} rounded-full transition-all duration-500`}
-                                                        style={{ width: `${item.value}%` }}
-                                                    />
+                                                <div className="h-1 bg-slate-100 rounded-full">
+                                                    <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${h.value}%` }} />
                                                 </div>
                                             </div>
                                         ))}
                                     </div>
-                                </div>
+                                </button>
                             </div>
                         </div>
 
-                        {/* Recent Activity */}
-                        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                            <div className="p-5 border-b border-slate-100 flex items-center justify-between">
-                                <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                                    <Zap className="w-5 h-5 text-amber-500" />
-                                    Recent Activity
-                                </h3>
-                                <button className="text-sm text-violet-600 font-semibold hover:text-violet-700">
-                                    View All →
-                                </button>
-                            </div>
-                            <div className="divide-y divide-slate-100">
-                                {[
-                                    { icon: FileText, text: 'Blog post "AI Marketing Trends 2025" published', time: '2 min ago', color: 'bg-violet-500' },
-                                    { icon: Youtube, text: 'YouTube Short generated for "Product Demo"', time: '15 min ago', color: 'bg-red-500' },
-                                    { icon: Instagram, text: 'Instagram Reel scheduled for tomorrow', time: '1 hour ago', color: 'bg-pink-500' },
-                                    { icon: Bot, text: 'AI completed content optimization batch', time: '2 hours ago', color: 'bg-emerald-500' },
-                                ].map((activity, idx) => (
-                                    <div key={idx} className="p-4 flex items-center gap-4 hover:bg-slate-50 transition-colors">
-                                        <div className={`p-2 rounded-lg ${activity.color}`}>
-                                            <activity.icon className="w-4 h-4 text-white" />
-                                        </div>
-                                        <div className="flex-1">
-                                            <p className="text-sm font-medium text-slate-700">{activity.text}</p>
-                                        </div>
-                                        <span className="text-xs text-slate-400">{activity.time}</span>
+                        {/* Platforms + Recent Activity Row */}
+                        <div className="grid grid-cols-12 gap-3">
+                            {/* Platform Performance */}
+                            <div className="col-span-8 bg-white rounded-lg shadow-sm border border-slate-100">
+                                <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+                                    <span className="font-semibold text-slate-900 text-sm">{t('platformPerformance')}</span>
+                                    <button onClick={() => setActiveTab('analytics')} className="text-xs text-violet-600 hover:text-violet-700 font-medium">{t('viewAnalytics')} →</button>
+                                </div>
+                                <div className="p-3">
+                                    <div className="grid grid-cols-5 gap-2">
+                                        {[
+                                            { name: 'WordPress', views: '45.8K', growth: '+23%', icon: Globe, gradient: 'from-blue-500 to-blue-600' },
+                                            { name: 'YouTube', views: '127.9K', growth: '+67%', icon: Youtube, gradient: 'from-red-500 to-red-600' },
+                                            { name: 'Instagram', views: '234.6K', growth: '+89%', icon: Instagram, gradient: 'from-purple-500 to-pink-500' },
+                                            { name: 'Facebook', views: '78.2K', growth: '+35%', icon: Facebook, gradient: 'from-blue-600 to-blue-700' },
+                                            { name: 'LinkedIn', views: '12.5K', growth: '+45%', icon: Users, gradient: 'from-sky-600 to-sky-700' },
+                                        ].map((p, idx) => (
+                                            <button key={idx} onClick={() => setActiveTab('analytics')} className="text-center p-3 rounded-lg hover:bg-slate-50 transition-colors group">
+                                                <div className={`w-10 h-10 mx-auto rounded-lg bg-gradient-to-br ${p.gradient} flex items-center justify-center mb-2`}>
+                                                    <p.icon className="w-5 h-5 text-white" />
+                                                </div>
+                                                <div className="text-lg font-bold text-slate-900">{p.views}</div>
+                                                <div className="text-xs text-slate-500">{p.name}</div>
+                                                <div className="text-xs font-semibold text-emerald-600">{p.growth}</div>
+                                            </button>
+                                        ))}
                                     </div>
-                                ))}
+                                </div>
+                            </div>
+
+                            {/* Recent Activity */}
+                            <div className="col-span-4 bg-white rounded-lg shadow-sm border border-slate-100">
+                                <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <Zap className="w-4 h-4 text-amber-500" />
+                                        <span className="font-semibold text-slate-900 text-sm">{t('recentActivity')}</span>
+                                    </div>
+                                    <button onClick={() => setActiveTab('content')} className="text-xs text-violet-600 hover:text-violet-700 font-medium">{t('viewAll')} →</button>
+                                </div>
+                                <div className="divide-y divide-slate-100">
+                                    {[
+                                        { icon: FileText, text: t('blogPostPublished'), time: '2m', gradient: 'from-violet-500 to-purple-500' },
+                                        { icon: Youtube, text: t('youtubeShortGenerated'), time: '15m', gradient: 'from-red-500 to-red-600' },
+                                        { icon: Instagram, text: t('reelScheduled'), time: '1h', gradient: 'from-purple-500 to-pink-500' },
+                                        { icon: Bot, text: t('aiBatchComplete'), time: '2h', gradient: 'from-emerald-500 to-teal-500' },
+                                    ].map((a, i) => (
+                                        <button key={i} onClick={() => setActiveTab('content')} className="w-full px-4 py-3 flex items-center gap-3 hover:bg-slate-50 transition-colors text-left">
+                                            <div className={`p-1.5 rounded-md bg-gradient-to-br ${a.gradient}`}>
+                                                <a.icon className="w-4 h-4 text-white" />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-sm text-slate-700 truncate">{a.text}</p>
+                                            </div>
+                                            <span className="text-xs text-slate-400">{a.time}</span>
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -542,9 +482,9 @@ export default function DashboardPage() {
                             <div>
                                 <h3 className="text-xl font-bold flex items-center gap-2 mb-2">
                                     <Sparkles className="w-6 h-6" />
-                                    AI Content Generation
+                                    {t('aiContentGen')}
                                 </h3>
-                                <p className="text-white/80">Generate high-quality content automatically with AI</p>
+                                <p className="text-white/80">{t('aiContentGenDesc')}</p>
                             </div>
                             <div className="flex items-center gap-3">
                                 <button
@@ -552,7 +492,7 @@ export default function DashboardPage() {
                                     className="px-6 py-3 rounded-xl bg-white text-violet-700 font-bold hover:bg-violet-50 transition-all flex items-center gap-2 shadow-lg"
                                 >
                                     <Zap className="w-5 h-5" />
-                                    Batch Generate
+                                    {t('batchGenerate')}
                                 </button>
                             </div>
                         </div>
@@ -582,10 +522,10 @@ export default function DashboardPage() {
                                 </div>
                                 <div className="text-left">
                                     <p className="font-semibold flex items-center gap-1">
-                                        AI Video
+                                        {t('aiVideo')}
                                         {!canUseFeature(user?.plan, 'video-generation') && <Zap className="w-3 h-3 text-amber-300 fill-amber-300" />}
                                     </p>
-                                    <p className="text-xs text-white/80">Generate videos</p>
+                                    <p className="text-xs text-white/80">{t('generateVideos')}</p>
                                 </div>
                             </button>
                             {/* NEW: AI Image Generator */}
@@ -612,7 +552,7 @@ export default function DashboardPage() {
                                 </div>
                                 <div className="text-left">
                                     <p className="font-semibold flex items-center gap-1">
-                                        AI Images
+                                        {t('aiImages')}
                                         {!canUseFeature(user?.plan, 'video-generation') && <Zap className="w-3 h-3 text-amber-300 fill-amber-300" />}
                                     </p>
                                     <p className="text-xs text-white/80">DALL-E / SD</p>
@@ -640,8 +580,8 @@ export default function DashboardPage() {
                                     <Languages className="w-5 h-5" />
                                 </div>
                                 <div className="text-left">
-                                    <p className="font-semibold">Translate</p>
-                                    <p className="text-xs text-white/80">20+ languages</p>
+                                    <p className="font-semibold">{t('translate')}</p>
+                                    <p className="text-xs text-white/80">20+ {t('languages')}</p>
                                 </div>
                             </button>
                             <button
@@ -652,8 +592,8 @@ export default function DashboardPage() {
                                     <Clock className="w-5 h-5" />
                                 </div>
                                 <div className="text-left">
-                                    <p className="font-semibold">Smart Schedule</p>
-                                    <p className="text-xs text-white/80">AI optimal times</p>
+                                    <p className="font-semibold">{t('smartSchedule')}</p>
+                                    <p className="text-xs text-white/80">{t('aiOptimalTimes')}</p>
                                 </div>
                             </button>
                             <button
@@ -679,8 +619,8 @@ export default function DashboardPage() {
                                     <FlaskConical className="w-5 h-5" />
                                 </div>
                                 <div className="text-left">
-                                    <p className="font-semibold">A/B Testing</p>
-                                    <p className="text-xs text-white/80">Optimize content</p>
+                                    <p className="font-semibold">{t('abTesting')}</p>
+                                    <p className="text-xs text-white/80">{t('optimizeContent')}</p>
                                 </div>
                             </button>
                             {/* NEW: Content Repurposing */}
@@ -692,8 +632,8 @@ export default function DashboardPage() {
                                     <Repeat2 className="w-5 h-5" />
                                 </div>
                                 <div className="text-left">
-                                    <p className="font-semibold">Repurpose</p>
-                                    <p className="text-xs text-white/80">8+ formats</p>
+                                    <p className="font-semibold">{t('repurpose')}</p>
+                                    <p className="text-xs text-white/80">8+ {t('formats')}</p>
                                 </div>
                             </button>
                         </div>
@@ -703,7 +643,7 @@ export default function DashboardPage() {
                             <div className="p-6 border-b border-slate-200">
                                 <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
                                     <FileText className="w-5 h-5 text-blue-600" />
-                                    Content Queue
+                                    {t('contentQueue')}
                                 </h2>
                             </div>
                             <div className="p-6">
@@ -739,12 +679,12 @@ export default function DashboardPage() {
                                                     className="px-3 py-1.5 rounded-lg bg-slate-200 text-slate-700 text-sm font-medium hover:bg-slate-300 flex items-center gap-1"
                                                 >
                                                     <Eye className="w-4 h-4" />
-                                                    Preview
+                                                    {t('preview')}
                                                 </button>
                                                 {item.status === 'pending' && (
                                                     <div className="flex gap-2">
-                                                        <button onClick={() => handleApprove(item.id)} className="px-3 py-1.5 rounded-lg bg-emerald-500 text-white text-sm font-medium hover:bg-emerald-600">Approve</button>
-                                                        <button onClick={() => handleReject(item.id)} className="px-3 py-1.5 rounded-lg bg-red-500 text-white text-sm font-medium hover:bg-red-600">Reject</button>
+                                                        <button onClick={() => handleApprove(item.id)} className="px-3 py-1.5 rounded-lg bg-emerald-500 text-white text-sm font-medium hover:bg-emerald-600">{t('approve')}</button>
+                                                        <button onClick={() => handleReject(item.id)} className="px-3 py-1.5 rounded-lg bg-red-500 text-white text-sm font-medium hover:bg-red-600">{t('reject')}</button>
                                                     </div>
                                                 )}
                                             </div>
@@ -759,7 +699,7 @@ export default function DashboardPage() {
                             <div className="p-6 border-b border-slate-200">
                                 <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
                                     <Folder className="w-5 h-5 text-amber-600" />
-                                    Topic Pillars
+                                    {t('topicPillars')}
                                 </h2>
                             </div>
                             <div className="p-6">
@@ -807,7 +747,7 @@ export default function DashboardPage() {
                                         }`}
                                 >
                                     <BarChart3 className="w-4 h-4" />
-                                    Advanced Analytics
+                                    {t('advancedAnalytics')}
                                 </button>
                                 <button
                                     onClick={() => setAnalyticsView('abtesting')}
@@ -817,7 +757,7 @@ export default function DashboardPage() {
                                         }`}
                                 >
                                     <FlaskConical className="w-4 h-4" />
-                                    A/B Testing
+                                    {t('abTesting')}
                                 </button>
                                 <button
                                     onClick={() => setAnalyticsView('standard')}
@@ -827,7 +767,7 @@ export default function DashboardPage() {
                                         }`}
                                 >
                                     <Calendar className="w-4 h-4" />
-                                    Roadmap
+                                    {t('roadmap')}
                                 </button>
                             </div>
                         </div>
@@ -853,7 +793,7 @@ export default function DashboardPage() {
                                 <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
                                     <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
                                         <BarChart3 className="w-5 h-5 text-emerald-600" />
-                                        Weekly Performance
+                                        {t('weeklyPerformance')}
                                     </h3>
                                     <div className="space-y-4">
                                         {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day, index) => {
@@ -925,7 +865,7 @@ export default function DashboardPage() {
                             <div className="p-6 border-b border-slate-200">
                                 <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
                                     <Activity className="w-5 h-5 text-red-600" />
-                                    Risk Monitor
+                                    {t('riskMonitor')}
                                 </h2>
                             </div>
                             <div className="p-6">
@@ -945,7 +885,7 @@ export default function DashboardPage() {
                                                         <p className="text-sm text-slate-500 mt-1">{alert.recommendation}</p>
                                                     </div>
                                                     <span className={`px-3 py-1 rounded-full text-xs font-bold ${alert.resolved ? 'bg-emerald-100 text-emerald-700' : severityStyles[alert.severity]}`}>
-                                                        {alert.resolved ? 'Resolved' : alert.severity}
+                                                        {alert.resolved ? t('resolved') : alert.severity}
                                                     </span>
                                                 </div>
                                             </div>
@@ -963,13 +903,13 @@ export default function DashboardPage() {
                                         <div className="w-16 h-16 bg-violet-100 text-violet-600 rounded-full flex items-center justify-center mx-auto mb-4">
                                             <Shield className="w-8 h-8" />
                                         </div>
-                                        <h3 className="text-xl font-bold text-slate-800 mb-2">Autopilot is Locked</h3>
-                                        <p className="text-slate-500 mb-6">Autonomous marketing loop is a premium feature available on Lite plans and above.</p>
+                                        <h3 className="text-xl font-bold text-slate-800 mb-2">{t('autopilotLocked')}</h3>
+                                        <p className="text-slate-500 mb-6">{t('autopilotLockedDesc')}</p>
                                         <button
                                             onClick={() => router.push('/pricing')}
                                             className="w-full py-3 bg-violet-600 text-white rounded-xl font-bold hover:bg-violet-700 transition-all"
                                         >
-                                            Upgrade to Lite ($29/mo)
+                                            {t('upgradeTo')} Lite ($29/mo)
                                         </button>
                                     </div>
                                 </div>
@@ -979,8 +919,8 @@ export default function DashboardPage() {
                                     <Bot className="w-6 h-6" />
                                 </div>
                                 <div>
-                                    <h2 className="text-2xl font-black text-slate-800 tracking-tight">AI Autopilot</h2>
-                                    <p className="text-slate-500">Decentralized autonomous marketing strategy</p>
+                                    <h2 className="text-2xl font-black text-slate-800 tracking-tight">{t('aiAutopilot')}</h2>
+                                    <p className="text-slate-500">{t('decentralizedMarketing')}</p>
                                 </div>
                             </div>
                             <AutopilotPanel />
@@ -990,13 +930,13 @@ export default function DashboardPage() {
                         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
                             <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
                                 <Calendar className="w-5 h-5 text-blue-600" />
-                                Publishing Schedule
+                                {t('publishingSchedule')}
                             </h3>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 {[
-                                    { label: 'Today', count: 3, color: 'bg-violet-500' },
-                                    { label: 'This Week', count: 12, color: 'bg-blue-500' },
-                                    { label: 'This Month', count: 45, color: 'bg-emerald-500' },
+                                    { label: t('today'), count: 3, color: 'bg-violet-500' },
+                                    { label: t('thisWeek'), count: 12, color: 'bg-blue-500' },
+                                    { label: t('thisMonth'), count: 45, color: 'bg-emerald-500' },
                                 ].map((item, index) => (
                                     <div key={index} className="p-6 rounded-xl bg-slate-50 border border-slate-200 text-center">
                                         <div className={`inline-flex p-3 rounded-xl ${item.color} mb-4`}>
@@ -1020,32 +960,32 @@ export default function DashboardPage() {
                                 <div className="p-4 border-b border-slate-100 bg-gradient-to-r from-fuchsia-50 to-violet-50">
                                     <h3 className="font-bold text-slate-800 flex items-center gap-2">
                                         <Wrench className="w-5 h-5 text-fuchsia-600" />
-                                        Marketing Tools
+                                        {t('marketingTools')}
                                     </h3>
                                 </div>
                                 <nav className="p-2 space-y-4">
                                     {[
                                         {
-                                            group: 'Discovery',
+                                            group: t('discovery'),
                                             items: [
-                                                { id: 'influencers', label: 'Influencer Discovery', icon: Users, color: 'text-fuchsia-600', bg: 'bg-fuchsia-50' },
-                                                { id: 'hashtags', label: 'Hashtag Trends', icon: Hash, color: 'text-indigo-600', bg: 'bg-indigo-50' },
-                                                { id: 'keywords', label: 'Keyword Research', icon: Search, color: 'text-blue-600', bg: 'bg-blue-50' },
+                                                { id: 'influencers', label: t('influencerDiscovery'), icon: Users, color: 'text-fuchsia-600', bg: 'bg-fuchsia-50' },
+                                                { id: 'hashtags', label: t('hashtagTrends'), icon: Hash, color: 'text-indigo-600', bg: 'bg-indigo-50' },
+                                                { id: 'keywords', label: t('keywordResearch'), icon: Search, color: 'text-blue-600', bg: 'bg-blue-50' },
                                             ]
                                         },
                                         {
-                                            group: 'Intelligence',
+                                            group: t('intelligence'),
                                             items: [
-                                                { id: 'competitor', label: 'Competitive Intel', icon: Target, color: 'text-rose-600', bg: 'bg-rose-50' },
-                                                { id: 'monitoring', label: 'Brand Monitoring', icon: Eye, color: 'text-orange-600', bg: 'bg-orange-50' },
+                                                { id: 'competitor', label: t('competitiveIntel'), icon: Target, color: 'text-rose-600', bg: 'bg-rose-50' },
+                                                { id: 'monitoring', label: t('brandMonitoring'), icon: Eye, color: 'text-orange-600', bg: 'bg-orange-50' },
                                             ]
                                         },
                                         {
-                                            group: 'Content',
+                                            group: t('content'),
                                             items: [
-                                                { id: 'templates', label: 'Content Templates', icon: FileText, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-                                                { id: 'splinter', label: 'Content Splinter', icon: Scissors, color: 'text-cyan-600', bg: 'bg-cyan-50' },
-                                                { id: 'utm', label: 'UTM Builder', icon: Link2, color: 'text-violet-600', bg: 'bg-violet-50' },
+                                                { id: 'templates', label: t('contentTemplates'), icon: FileText, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+                                                { id: 'splinter', label: t('contentSplinter'), icon: Scissors, color: 'text-cyan-600', bg: 'bg-cyan-50' },
+                                                { id: 'utm', label: t('utmBuilder'), icon: Link2, color: 'text-violet-600', bg: 'bg-violet-50' },
                                             ]
                                         }
                                     ].map((section) => (
@@ -1134,7 +1074,7 @@ export default function DashboardPage() {
                                 <div className="p-4 border-b border-slate-100 bg-gradient-to-r from-violet-50 to-fuchsia-50">
                                     <h3 className="font-bold text-slate-800 flex items-center gap-2">
                                         <Settings className="w-5 h-5 text-violet-600" />
-                                        Settings
+                                        {t('settings')}
                                     </h3>
                                 </div>
                                 <nav className="p-2 space-y-4">
@@ -1591,5 +1531,21 @@ export default function DashboardPage() {
                 } : undefined}
             />
         </div>
+    );
+}
+
+// Wrapper component with Suspense boundary for useSearchParams
+export default function DashboardPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 flex items-center justify-center">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-violet-600 mx-auto mb-4"></div>
+                    <p className="text-slate-600">Loading dashboard...</p>
+                </div>
+            </div>
+        }>
+            <DashboardContent />
+        </Suspense>
     );
 }

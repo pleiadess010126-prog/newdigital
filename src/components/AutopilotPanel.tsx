@@ -6,7 +6,7 @@ import {
     Play, Pause, RefreshCw, CheckCircle2,
     AlertCircle, Target, Rocket
 } from 'lucide-react';
-import { getAutopilotManager, AutopilotConfig } from '@/lib/ai/autopilot';
+import { getAutopilotManager, AutopilotConfig, AutomationMode } from '@/lib/ai/autopilot';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { canUseFeature } from '@/lib/billing/permissions';
 
@@ -97,6 +97,116 @@ export default function AutopilotPanel() {
                 </div>
             </div>
 
+            {/* Automation Mode Selector - NEW! */}
+            <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl border-2 border-indigo-200 p-6 shadow-sm">
+                <div className="flex items-center gap-3 mb-6">
+                    <div className="p-2 bg-indigo-100 text-indigo-600 rounded-lg">
+                        <Brain className="w-5 h-5" />
+                    </div>
+                    <div>
+                        <h3 className="font-bold text-slate-800">Automation Mode</h3>
+                        <p className="text-xs text-slate-500">Choose how much control you want</p>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-3 mb-4">
+                    {[
+                        {
+                            id: 'full-auto',
+                            label: '🚀 Full Auto',
+                            desc: 'AI does everything',
+                            details: 'Generate → Schedule → Publish automatically'
+                        },
+                        {
+                            id: 'approval',
+                            label: '👤 Approval',
+                            desc: 'Review before publish',
+                            details: 'AI generates, you approve with 1-click'
+                        },
+                        {
+                            id: 'manual',
+                            label: '✋ Manual',
+                            desc: 'Full control',
+                            details: 'You trigger every action manually'
+                        }
+                    ].map((mode) => (
+                        <button
+                            key={mode.id}
+                            onClick={() => {
+                                const manager = getAutopilotManager();
+                                const newMode = mode.id as AutomationMode;
+                                manager.updateConfig({
+                                    automationMode: newMode,
+                                    autoPublish: newMode === 'full-auto',
+                                    contentReviewRequired: newMode !== 'full-auto',
+                                    videoReviewRequired: newMode !== 'full-auto',
+                                    autoGenerateContent: newMode !== 'manual',
+                                    autoGenerateVideos: newMode !== 'manual',
+                                    autoSchedule: newMode !== 'manual',
+                                    approvalRequired: newMode === 'approval'
+                                });
+                                setConfig(manager.getConfig());
+                            }}
+                            className={`p-4 rounded-xl border-2 transition-all text-left ${config.automationMode === mode.id
+                                    ? 'border-indigo-500 bg-indigo-100 ring-4 ring-indigo-500/20'
+                                    : 'border-slate-200 bg-white hover:border-indigo-300'
+                                }`}
+                        >
+                            <div className="text-lg font-bold mb-1">{mode.label}</div>
+                            <div className={`text-sm font-medium ${config.automationMode === mode.id ? 'text-indigo-700' : 'text-slate-600'}`}>
+                                {mode.desc}
+                            </div>
+                            <div className="text-xs text-slate-500 mt-2">{mode.details}</div>
+                        </button>
+                    ))}
+                </div>
+
+                {/* Mode-specific info */}
+                <div className={`p-4 rounded-xl border ${config.automationMode === 'full-auto'
+                        ? 'bg-amber-50 border-amber-200'
+                        : config.automationMode === 'approval'
+                            ? 'bg-blue-50 border-blue-200'
+                            : 'bg-slate-50 border-slate-200'
+                    }`}>
+                    {config.automationMode === 'full-auto' && (
+                        <div className="flex items-start gap-3">
+                            <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5" />
+                            <div>
+                                <p className="text-sm font-semibold text-amber-800">⚡ Fully Autonomous Mode Active</p>
+                                <p className="text-xs text-amber-700 mt-1">
+                                    AI will automatically generate content, create videos, schedule, and publish without human review.
+                                    Recommended only after you've reviewed AI quality.
+                                </p>
+                            </div>
+                        </div>
+                    )}
+                    {config.automationMode === 'approval' && (
+                        <div className="flex items-start gap-3">
+                            <CheckCircle2 className="w-5 h-5 text-blue-600 mt-0.5" />
+                            <div>
+                                <p className="text-sm font-semibold text-blue-800">👤 Human-in-the-Loop Mode (Recommended)</p>
+                                <p className="text-xs text-blue-700 mt-1">
+                                    AI generates content and schedules it, but waits for your 1-click approval before publishing.
+                                    Best balance of automation and control.
+                                </p>
+                            </div>
+                        </div>
+                    )}
+                    {config.automationMode === 'manual' && (
+                        <div className="flex items-start gap-3">
+                            <Settings className="w-5 h-5 text-slate-600 mt-0.5" />
+                            <div>
+                                <p className="text-sm font-semibold text-slate-800">✋ Full Manual Control</p>
+                                <p className="text-xs text-slate-600 mt-1">
+                                    You trigger content generation, video creation, and publishing manually.
+                                    AI assists but doesn't act autonomously.
+                                </p>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+
             {/* Automation Settings Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Velocity Control */}
@@ -157,8 +267,8 @@ export default function AutopilotPanel() {
                         </div>
 
                         <div className={`flex items-center justify-between p-3 rounded-xl border relative transition-all ${canUseFeature(user?.plan, 'self-healing')
-                                ? 'bg-slate-50 border-slate-100'
-                                : 'bg-slate-100 border-slate-200 opacity-60'
+                            ? 'bg-slate-50 border-slate-100'
+                            : 'bg-slate-100 border-slate-200 opacity-60'
                             }`}>
                             <div>
                                 <div className="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
