@@ -3,7 +3,6 @@
 // Production authentication with Cognito + demo fallback
 // =================================================================
 
-import { NextResponse } from 'next/server';
 import { signIn } from '@/lib/aws/cognito';
 import { setSessionCookies } from '@/lib/auth/session.server';
 import { type SessionUser } from '@/lib/auth/session';
@@ -69,17 +68,32 @@ export async function POST(request: Request) {
             return apiResponse.success({ user, message: 'Login successful' });
         }
 
-        // Development/Demo mode: Return not configured
-        return NextResponse.json(
-            {
-                success: false,
-                error: {
-                    message: 'Cognito not configured',
-                    code: 'NOT_CONFIGURED',
-                },
-            },
-            { status: 404 }
-        );
+        // Development/Demo mode: Accept demo credentials
+        // Accept demo123, admin123, or any password >= 6 chars
+        if (password === 'demo123' || password === 'admin123' || password.length >= 6) {
+            const isAdminUser = email.includes('admin') || email === 'admin@digitalme.ng';
+            const user: SessionUser = {
+                id: `demo_${Date.now()}`,
+                email,
+                name: email.split('@')[0],
+                organization: 'Demo Organization',
+                plan: isAdminUser ? 'enterprise' : 'free',
+                role: isAdminUser ? 'admin' : 'user',
+                isAdmin: isAdminUser,
+                createdAt: new Date(),
+            };
+
+            // Set demo session cookies
+            await setSessionCookies(user, {});
+
+            return apiResponse.success({
+                user,
+                message: 'Login successful (Demo Mode)',
+                demoMode: true
+            });
+        }
+
+        return apiResponse.error('Invalid credentials', 401, 'INVALID_CREDENTIALS');
 
     } catch (error) {
         console.error('Login route error:', error);
