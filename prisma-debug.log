@@ -1,0 +1,163 @@
+2026-01-04T17:44:56.603Z [Prisma] Initializing Prisma Client...
+2026-01-04T17:44:56.607Z [Prisma] DB URL Found: true
+2026-01-04T17:44:56.608Z [Prisma] Attempting to use Neon Serverless adapter
+2026-01-04T17:44:56.611Z [Prisma] Client initialized with Neon adapter
+2026-01-04T17:47:17.178Z [Prisma] Initializing Prisma Client...
+2026-01-04T17:47:17.194Z [Prisma] DB URL Found: true
+2026-01-04T17:47:17.195Z [Prisma] Attempting to use Neon Serverless adapter
+2026-01-04T17:47:17.198Z [Prisma] Client initialization failed with adapter: Invalid URL
+2026-01-04T17:47:17.200Z [Prisma] Falling back to standard client with explicit URL
+2026-01-04T17:47:53.838Z [Prisma] Initializing Prisma Client...
+2026-01-04T17:47:54.203Z [Prisma] DB URL Found: true
+2026-01-04T17:47:54.204Z [Prisma] Attempting to use Neon Serverless adapter
+2026-01-04T17:47:54.237Z [Prisma] Client initialization failed with adapter: Invalid URL
+2026-01-04T17:47:54.239Z [Prisma] Falling back to standard client with explicit URL
+2026-01-04T17:51:13.020Z [Prisma] Initializing Prisma Client...
+2026-01-04T17:51:13.025Z [Prisma] DB URL Found: true
+2026-01-04T17:51:13.026Z [Prisma] DB URL Length: 124
+2026-01-04T17:51:13.028Z [Prisma] DB URL Check: postgresql://ne...de=require
+2026-01-04T17:51:13.029Z [Prisma] Attempting to use Neon Serverless adapter
+2026-01-04T17:51:13.031Z [Prisma] Client initialization failed with adapter: Invalid URL format: postgresql://neondb_owner:npg_ang9FJ5RPGAfep-quiet-cloud-a1duldt0-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require
+2026-01-04T17:51:13.033Z [Prisma] Falling back to standard client with explicit URL
+2026-01-04T17:51:38.373Z [Prisma] Initializing Prisma Client...
+2026-01-04T17:51:38.376Z [Prisma] DB URL Found: true
+2026-01-04T17:51:38.384Z [Prisma] DB URL Length: 124
+2026-01-04T17:51:38.387Z [Prisma] DB URL Check: postgresql://ne...de=require
+2026-01-04T17:51:38.391Z [Prisma] Attempting to use Neon Serverless adapter
+2026-01-04T17:51:38.396Z [Prisma] Client initialization failed with adapter: Invalid URL format: postgresql://neondb_owner:npg_ang9FJ5RPGAfep-quiet-cloud-a1duldt0-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require
+2026-01-04T17:51:38.404Z [Prisma] Falling back to standard client with explicit URL
+2026-01-04T18:05:18.439Z [Prisma] Initializing Prisma Client...
+2026-01-04T18:05:18.467Z [Prisma] DB URL Found: true
+2026-01-04T18:05:18.469Z [Prisma] DB URL Length: 125
+2026-01-04T18:05:18.470Z [Prisma] DB URL Check: postgresql://ne...de=require
+2026-01-04T18:05:18.471Z [Prisma] Attempting to use Neon Serverless adapter
+2026-01-04T18:05:18.473Z [Prisma] URL is valid format
+2026-01-04T18:05:18.479Z [Prisma] Client initialized with Neon adapter
+2026-01-04T18:12:01.331Z --- NEW INIT SEQUENCE ---
+2026-01-04T18:12:01.348Z [Prisma] Initializing Prisma Client...
+2026-01-04T18:12:01.350Z [Prisma] DB URL Found: true
+2026-01-04T18:12:01.354Z [Prisma] Creating Pool...
+2026-01-04T18:12:01.358Z [Prisma] Creating Adapter...
+2026-01-04T18:12:01.360Z [Prisma] Creating PrismaClient with adapter...
+2026-01-04T18:12:01.365Z [Prisma] Client created successfully
+2026-01-04T18:12:16.982Z --- NEW INIT SEQUENCE ---
+2026-01-04T18:12:16.989Z [Prisma] Initializing Prisma Client...
+2026-01-04T18:12:17.000Z [Prisma] DB URL Found: true
+2026-01-04T18:12:17.007Z [Prisma] Creating Pool...
+2026-01-04T18:12:17.013Z [Prisma] Creating Adapter...
+2026-01-04T18:12:17.018Z [Prisma] Creating PrismaClient with adapter...
+2026-01-04T18:12:17.023Z [Prisma] Client created successfully
+2026-01-04T18:16:40.229Z --- NEW INIT SEQUENCE ---
+2026-01-04T18:16:41.455Z [Prisma] Initializing Prisma Client...
+2026-01-04T18:16:41.457Z [Prisma] DB URL Found: true
+2026-01-04T18:16:41.475Z [Prisma] Creating Pool...
+2026-01-04T18:16:41.480Z [Prisma] Creating Adapter...
+2026-01-04T18:16:41.482Z [Prisma] Creating PrismaClient with adapter...
+2026-01-04T18:16:41.486Z [Prisma] Client created successfully
+2026-01-04T18:17:09.897Z --- NEW INIT SEQUENCE ---
+2026-01-04T18:17:09.902Z [Prisma] Initializing Prisma Client...
+2026-01-04T18:17:09.905Z [Prisma] DB URL Found: true
+2026-01-04T18:17:09.907Z [Prisma] Creating Pool...
+2026-01-04T18:17:09.912Z [Prisma] Creating Adapter...
+2026-01-04T18:17:09.915Z [Prisma] Creating PrismaClient with adapter...
+2026-01-04T18:17:09.923Z [Prisma] Client created successfully
+2026-01-05T02:08:36.406Z --- NEW INIT SEQUENCE (STANDARD) ---
+2026-01-05T02:08:36.409Z [Prisma] Initializing Prisma Client...
+2026-01-05T02:08:36.410Z [Prisma] DB URL Found: true
+2026-01-05T02:08:36.411Z [Prisma] Using standard Prisma Client...
+2026-01-05T02:08:36.413Z [Prisma] FATAL ERROR during init: Unknown property datasources provided to PrismaClient constructor.
+Read more at https://pris.ly/d/client-constructor
+2026-01-05T02:10:12.305Z --- NEW INIT SEQUENCE (STANDARD) ---
+2026-01-05T02:10:12.326Z [Prisma] Initializing Prisma Client...
+2026-01-05T02:10:12.328Z [Prisma] DB URL Found: true
+2026-01-05T02:10:12.329Z [Prisma] Using standard Prisma Client...
+2026-01-05T02:10:12.332Z [Prisma] FATAL ERROR during init: Unknown property datasourceUrl provided to PrismaClient constructor.
+Read more at https://pris.ly/d/client-constructor
+2026-01-05T02:10:19.189Z --- NEW INIT SEQUENCE (STANDARD) ---
+2026-01-05T02:10:19.191Z [Prisma] Initializing Prisma Client...
+2026-01-05T02:10:19.193Z [Prisma] DB URL Found: true
+2026-01-05T02:10:19.195Z [Prisma] Using standard Prisma Client...
+2026-01-05T02:10:19.197Z [Prisma] FATAL ERROR during init: Unknown property datasourceUrl provided to PrismaClient constructor.
+Read more at https://pris.ly/d/client-constructor
+2026-01-05T02:11:31.284Z --- NEW INIT SEQUENCE (ADAPTER RESTORED) ---
+2026-01-05T02:11:31.289Z [Prisma] Initializing Prisma Client...
+2026-01-05T02:11:31.290Z [Prisma] DB URL Found: true
+2026-01-05T02:11:31.291Z [Prisma] Using Neon Serverless adapter
+2026-01-05T02:11:31.295Z [Prisma] Client created successfully with adapter
+2026-01-05T02:19:18.359Z --- NEW INIT SEQUENCE (ADAPTER RESTORED) ---
+2026-01-05T02:19:18.367Z [Prisma] Initializing Prisma Client...
+2026-01-05T02:19:18.369Z [Prisma] DB URL Found: true
+2026-01-05T02:19:18.377Z [Prisma] Using Neon Serverless adapter
+2026-01-05T02:19:18.384Z [Prisma] Client created successfully with adapter
+2026-01-05T02:19:19.311Z [Prisma] $connect() SUCCESS
+2026-01-05T02:19:19.571Z --- NEW INIT SEQUENCE (ADAPTER RESTORED) ---
+2026-01-05T02:19:19.573Z [Prisma] Initializing Prisma Client...
+2026-01-05T02:19:19.574Z [Prisma] DB URL Found: true
+2026-01-05T02:19:19.575Z [Prisma] Using Neon Serverless adapter
+2026-01-05T02:19:19.577Z [Prisma] Client created successfully with adapter
+2026-01-05T02:19:19.580Z [Prisma] $connect() SUCCESS
+2026-01-05T02:23:13.630Z --- NEW INIT SEQUENCE (STANDARD SIMPLE) ---
+2026-01-05T02:23:13.637Z [Prisma] DB URL Found: true
+2026-01-05T02:23:13.639Z [Prisma] Creating new PrismaClient instance
+2026-01-05T02:23:21.152Z --- NEW INIT SEQUENCE (STANDARD SIMPLE) ---
+2026-01-05T02:23:21.153Z [Prisma] DB URL Found: true
+2026-01-05T02:23:21.154Z [Prisma] Creating new PrismaClient instance
+2026-01-05T02:28:54.589Z --- NEW INIT SEQUENCE (FINAL ADAPTER) ---
+2026-01-05T02:28:54.595Z [Prisma] Initializing Prisma Client...
+2026-01-05T02:28:54.596Z [Prisma] DB URL Found: true
+2026-01-05T02:28:54.597Z [Prisma] Using Neon Serverless adapter
+2026-01-05T02:28:54.601Z [Prisma] Client created successfully with adapter
+2026-01-05T02:28:55.455Z [Prisma] $connect() SUCCESS
+2026-01-05T02:29:03.989Z --- NEW INIT SEQUENCE (FINAL ADAPTER) ---
+2026-01-05T02:29:03.991Z [Prisma] Initializing Prisma Client...
+2026-01-05T02:29:03.992Z [Prisma] DB URL Found: true
+2026-01-05T02:29:03.993Z [Prisma] Using Neon Serverless adapter
+2026-01-05T02:29:03.995Z [Prisma] Client created successfully with adapter
+2026-01-05T02:29:03.996Z [Prisma] $connect() SUCCESS
+2026-01-05T02:52:25.062Z --- NEW INIT SEQUENCE (FINAL ADAPTER + QUERY) ---
+2026-01-05T02:52:25.065Z [Prisma] Initializing Prisma Client...
+2026-01-05T02:52:25.067Z [Prisma] DB URL Found: true
+2026-01-05T02:52:25.069Z [Prisma] Using Neon Serverless adapter
+2026-01-05T02:52:25.073Z [Prisma] Client created successfully with adapter
+2026-01-05T02:52:25.157Z [Prisma] $connect() SUCCESS
+2026-01-05T02:52:25.222Z [Prisma] Query Failed: No database host or connection string was set, and key parameters have default values (host: localhost, user: priya, db: priya, password: null). Is an environment variable missing? Alternatively, if you intended to connect with these parameters, please set the host to 'localhost' explicitly.
+2026-01-05T02:59:37.398Z --- NEW INIT SEQUENCE (STANDARD DATASOURCES) ---
+2026-01-05T02:59:37.405Z [Prisma] DB URL Found: true
+2026-01-05T02:59:37.407Z [Prisma] Using standard Prisma Client with datasources...
+2026-01-05T02:59:37.410Z [Prisma] FATAL ERROR during init: Unknown property datasources provided to PrismaClient constructor.
+Read more at https://pris.ly/d/client-constructor
+2026-01-05T03:00:33.702Z --- NEW INIT SEQUENCE (STANDARD DATASOURCES) ---
+2026-01-05T03:00:33.896Z [Prisma] DB URL Found: true
+2026-01-05T03:00:33.911Z [Prisma] Using standard Prisma Client with datasources...
+2026-01-05T03:00:33.913Z [Prisma] FATAL ERROR during init: Unknown property datasources provided to PrismaClient constructor.
+Read more at https://pris.ly/d/client-constructor
+2026-01-05T13:52:10.266Z --- NEW INIT SEQUENCE (STANDARD DATASOURCES) ---
+2026-01-05T13:52:10.279Z [Prisma] DB URL Found: true
+2026-01-05T13:52:10.280Z [Prisma] Using standard Prisma Client with datasources...
+2026-01-05T13:52:10.282Z [Prisma] FATAL ERROR during init: Unknown property datasources provided to PrismaClient constructor.
+Read more at https://pris.ly/d/client-constructor
+2026-01-05T13:52:29.256Z --- NEW INIT SEQUENCE (STANDARD DATASOURCES) ---
+2026-01-05T13:52:29.258Z [Prisma] DB URL Found: true
+2026-01-05T13:52:29.259Z [Prisma] Using standard Prisma Client with datasources...
+2026-01-05T13:52:29.261Z [Prisma] FATAL ERROR during init: Unknown property datasources provided to PrismaClient constructor.
+Read more at https://pris.ly/d/client-constructor
+2026-01-05T14:06:39.504Z --- PRISMA CLIENT INIT ---
+2026-01-05T14:06:39.507Z [Prisma] DB URL Found: true
+2026-01-05T14:06:39.508Z [Prisma] Creating PrismaClient with datasourceUrl...
+2026-01-05T14:06:39.510Z [Prisma] FATAL ERROR during init: Unknown property datasourceUrl provided to PrismaClient constructor.
+Read more at https://pris.ly/d/client-constructor
+2026-01-05T14:08:20.890Z --- PRISMA CLIENT INIT ---
+2026-01-05T14:08:20.891Z [Prisma] DB URL Found: true
+2026-01-05T14:08:20.893Z [Prisma] Creating PrismaClient with datasourceUrl...
+2026-01-05T14:08:20.895Z [Prisma] FATAL ERROR during init: Unknown property datasourceUrl provided to PrismaClient constructor.
+Read more at https://pris.ly/d/client-constructor
+2026-01-05T14:16:24.277Z --- PRISMA CLIENT INIT ---
+2026-01-05T14:16:24.291Z [Prisma] DB URL Found: true
+2026-01-05T14:16:24.293Z [Prisma] Creating PrismaClient (using DATABASE_URL from env)...
+2026-01-05T14:16:24.309Z [Prisma] FATAL ERROR during init: Using engine type "client" requires either "adapter" or "accelerateUrl" to be provided to PrismaClient constructor.
+Read more at https://pris.ly/d/client-constructor
+2026-01-05T14:39:51.329Z --- PRISMA CLIENT INIT ---
+2026-01-05T14:39:51.333Z [Prisma] DB URL Found: true
+2026-01-05T14:39:51.334Z [Prisma] Creating PrismaClient (using DATABASE_URL from env)...
+2026-01-05T14:39:51.337Z [Prisma] FATAL ERROR during init: Using engine type "client" requires either "adapter" or "accelerateUrl" to be provided to PrismaClient constructor.
+Read more at https://pris.ly/d/client-constructor

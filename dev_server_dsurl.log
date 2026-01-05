@@ -1,0 +1,102 @@
+
+> digitalmeng-v3@0.1.0 dev
+> next dev
+
+▲ Next.js 16.1.1 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.1.7:3000
+- Environments: .env.local, .env
+- Experiments (use with caution):
+  · serverActions
+
+✓ Starting...
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+✓ Ready in 3.1s
+○ Compiling /dashboard ...
+[dotenv@17.2.3] injecting env (0) from .env.local -- tip: 📡 add observability to secrets: https://dotenvx.com/ops
+[dotenv@17.2.3] injecting env (0) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+--- NEW INIT SEQUENCE (STANDARD) ---
+[Prisma] Initializing Prisma Client...
+[Prisma] DB URL Found: true
+[Prisma] Using standard Prisma Client...
+[Prisma] FATAL ERROR during init: Unknown property datasourceUrl provided to PrismaClient constructor.
+Read more at https://pris.ly/d/client-constructor
+⨯ Error [PrismaClientInitializationError]: `PrismaClient` needs to be constructed with a non-empty, valid `PrismaClientOptions`:
+
+```
+new PrismaClient({
+  ...
+})
+```
+
+or
+
+```
+constructor() {
+  super({ ... });
+}
+```
+          
+    at module evaluation (src\lib\db\prisma.ts:41:18)
+    at module evaluation (src\lib\db\prismaClient.ts:8:1)
+    at getDatabaseClient (src\lib\db\client.ts:374:27)
+    at module evaluation (src\lib\db\client.ts:383:19)
+    at module evaluation (src\app\api\health\route.ts:7:1)
+    at Object.<anonymous> (C:\Users\priya\.gemini\antigravity\DigitalMEng_repo\.next\dev\server\app\api\health\route.js:5:3)
+  39 |     } catch (error) {
+  40 |         logDebug('[Prisma] FATAL ERROR during init: ' + (error instanceof Error ? error.message : String(error)));
+> 41 |         prisma = new PrismaClient();
+     |                  ^
+  42 |     }
+  43 | }
+  44 | {
+  clientVersion: '7.2.0',
+  errorCode: undefined,
+  retryable: undefined,
+  page: '/api/health'
+}
+ GET /api/health 500 in 5.4s (compile: 4.6s, proxy.ts: 8ms, render: 765ms)
+[dotenv@17.2.3] injecting env (0) from .env.local -- tip: ✅ audit secrets and track compliance: https://dotenvx.com/ops
+[dotenv@17.2.3] injecting env (0) from .env -- tip: 📡 add observability to secrets: https://dotenvx.com/ops
+--- NEW INIT SEQUENCE (STANDARD) ---
+[Prisma] Initializing Prisma Client...
+[Prisma] DB URL Found: true
+[Prisma] Using standard Prisma Client...
+[Prisma] FATAL ERROR during init: Unknown property datasourceUrl provided to PrismaClient constructor.
+Read more at https://pris.ly/d/client-constructor
+⨯ Error [PrismaClientInitializationError]: `PrismaClient` needs to be constructed with a non-empty, valid `PrismaClientOptions`:
+
+```
+new PrismaClient({
+  ...
+})
+```
+
+or
+
+```
+constructor() {
+  super({ ... });
+}
+```
+          
+    at module evaluation (src\lib\db\prisma.ts:41:18)
+    at module evaluation (src\lib\db\prismaClient.ts:8:1)
+    at getDatabaseClient (src\lib\db\client.ts:374:27)
+    at module evaluation (src\lib\db\client.ts:383:19)
+    at module evaluation (src\lib\db\OrganizationContext.tsx:5:1)
+  39 |     } catch (error) {
+  40 |         logDebug('[Prisma] FATAL ERROR during init: ' + (error instanceof Error ? error.message : String(error)));
+> 41 |         prisma = new PrismaClient();
+     |                  ^
+  42 |     }
+  43 | }
+  44 | {
+  clientVersion: '7.2.0',
+  errorCode: undefined,
+  retryable: undefined,
+  digest: '3804619107'
+}
+ GET /dashboard 500 in 16.9s (compile: 15.0s, proxy.ts: 138ms, render: 1691ms)
+ GET /api/auth/session 200 in 261ms (compile: 192ms, proxy.ts: 12ms, render: 57ms)
+✓ Compiled in 801ms

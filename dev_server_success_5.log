@@ -1,0 +1,37 @@
+
+> digitalmeng-v3@0.1.0 dev
+> next dev
+
+▲ Next.js 16.1.1 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.1.7:3000
+- Environments: .env.local, .env
+- Experiments (use with caution):
+  · serverActions
+
+✓ Starting...
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+✓ Ready in 6.1s
+[dotenv@17.2.3] injecting env (0) from .env.local -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+[dotenv@17.2.3] injecting env (0) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+--- NEW INIT SEQUENCE (FINAL ADAPTER) ---
+[Prisma] Initializing Prisma Client...
+[Prisma] DB URL Found: true
+[Prisma] Using Neon Serverless adapter
+[Prisma] Client created successfully with adapter
+[Prisma] $connect() SUCCESS
+ GET /dashboard 200 in 3.5s (compile: 1535ms, proxy.ts: 107ms, render: 1838ms)
+ GET /api/auth/session 200 in 1297ms (compile: 895ms, proxy.ts: 13ms, render: 388ms)
+[dotenv@17.2.3] injecting env (0) from .env.local -- tip: ⚙️  suppress all logs with { quiet: true }
+[dotenv@17.2.3] injecting env (0) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+--- NEW INIT SEQUENCE (FINAL ADAPTER) ---
+[Prisma] Initializing Prisma Client...
+[Prisma] DB URL Found: true
+[Prisma] Using Neon Serverless adapter
+[Prisma] Client created successfully with adapter
+[Prisma] $connect() SUCCESS
+[Health] Database check failed: Error: No database host or connection string was set, and key parameters have default values (host: localhost, user: priya, db: priya, password: null). Is an environment variable missing? Alternatively, if you intended to connect with these parameters, please set the host to 'localhost' explicitly.
+    at ignore-listed frames {
+  clientVersion: '7.2.0'
+}
+ GET /api/health 503 in 948ms (compile: 575ms, proxy.ts: 6ms, render: 366ms)

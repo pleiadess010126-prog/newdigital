@@ -1,0 +1,57 @@
+
+> digitalmeng-v3@0.1.0 dev
+> next dev
+
+▲ Next.js 16.1.1 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.1.7:3000
+- Environments: .env.local, .env
+- Experiments (use with caution):
+  · serverActions
+
+✓ Starting...
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+✓ Ready in 8.2s
+[dotenv@17.2.3] injecting env (0) from .env.local -- tip: ⚙️  override existing env vars with { override: true }
+[dotenv@17.2.3] injecting env (0) from .env -- tip: 🗂️ backup and recover secrets: https://dotenvx.com/ops
+--- NEW INIT SEQUENCE (STANDARD) ---
+[Prisma] Initializing Prisma Client...
+[Prisma] DB URL Found: true
+[Prisma] Using standard Prisma Client...
+[Prisma] FATAL ERROR during init: Unknown property datasources provided to PrismaClient constructor.
+Read more at https://pris.ly/d/client-constructor
+⨯ Error [PrismaClientInitializationError]: `PrismaClient` needs to be constructed with a non-empty, valid `PrismaClientOptions`:
+
+```
+new PrismaClient({
+  ...
+})
+```
+
+or
+
+```
+constructor() {
+  super({ ... });
+}
+```
+          
+    at module evaluation (src\lib\db\prisma.ts:44:18)
+    at module evaluation (src\lib\db\prismaClient.ts:8:1)
+    at getDatabaseClient (src\lib\db\client.ts:374:27)
+    at module evaluation (src\lib\db\client.ts:383:19)
+    at module evaluation (src\app\api\health\route.ts:7:1)
+    at Object.<anonymous> (C:\Users\priya\.gemini\antigravity\DigitalMEng_repo\.next\dev\server\app\api\health\route.js:5:3)
+  42 |     } catch (error) {
+  43 |         logDebug('[Prisma] FATAL ERROR during init: ' + (error instanceof Error ? error.message : String(error)));
+> 44 |         prisma = new PrismaClient();
+     |                  ^
+  45 |     }
+  46 | }
+  47 | {
+  clientVersion: '7.2.0',
+  errorCode: undefined,
+  retryable: undefined,
+  page: '/api/health'
+}
+ GET /api/health 500 in 5.8s (compile: 5.4s, proxy.ts: 129ms, render: 311ms)

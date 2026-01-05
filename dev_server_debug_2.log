@@ -1,0 +1,70 @@
+
+> digitalmeng-v3@0.1.0 dev
+> next dev
+
+▲ Next.js 16.1.1 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.1.7:3000
+- Environments: .env.local, .env
+- Experiments (use with caution):
+  · serverActions
+
+✓ Starting...
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+✓ Ready in 7.8s
+○ Compiling / ...
+[dotenv@17.2.3] injecting env (0) from .env.local -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+[dotenv@17.2.3] injecting env (0) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+[Prisma] Initializing Prisma Client...
+[Prisma] DB URL Found: true
+[Prisma] DB URL Length: 124
+[Prisma] DB URL Check: postgresql://ne...de=require
+[Prisma] Attempting to use Neon Serverless adapter
+[Prisma] Client initialization failed with adapter: Invalid URL format: postgresql://neondb_owner:npg_ang9FJ5RPGAfep-quiet-cloud-a1duldt0-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require
+[Prisma] Falling back to standard client with explicit URL
+⨯ Error [PrismaClientConstructorValidationError]: Unknown property datasources provided to PrismaClient constructor.
+Read more at https://pris.ly/d/client-constructor
+    at module evaluation (src\lib\db\prisma.ts:68:35)
+    at module evaluation (src\lib\db\prismaClient.ts:8:1)
+    at getDatabaseClient (src\lib\db\client.ts:374:27)
+    at module evaluation (src\lib\db\client.ts:383:19)
+    at module evaluation (src\lib\db\OrganizationContext.tsx:5:1)
+  66 |         logDebug('[Prisma] Falling back to standard client with explicit URL');
+  67 |         // Fallback to standard
+> 68 |         prisma = global.prisma || new PrismaClient({
+     |                                   ^
+  69 |             datasources: { db: { url: connectionString } }
+  70 |         });
+  71 |     } {
+  digest: '2867416177'
+}
+ GET / 500 in 9.2s (compile: 7.8s, proxy.ts: 173ms, render: 1225ms)
+ GET /api/auth/session 200 in 519ms (compile: 404ms, proxy.ts: 35ms, render: 80ms)
+[dotenv@17.2.3] injecting env (0) from .env.local -- tip: 👥 sync secrets across teammates & machines: https://dotenvx.com/ops
+[dotenv@17.2.3] injecting env (0) from .env -- tip: 🔑 add access controls to secrets: https://dotenvx.com/ops
+[Prisma] Initializing Prisma Client...
+[Prisma] DB URL Found: true
+[Prisma] DB URL Length: 124
+[Prisma] DB URL Check: postgresql://ne...de=require
+[Prisma] Attempting to use Neon Serverless adapter
+[Prisma] Client initialization failed with adapter: Invalid URL format: postgresql://neondb_owner:npg_ang9FJ5RPGAfep-quiet-cloud-a1duldt0-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require
+[Prisma] Falling back to standard client with explicit URL
+⨯ Error [PrismaClientConstructorValidationError]: Unknown property datasources provided to PrismaClient constructor.
+Read more at https://pris.ly/d/client-constructor
+    at module evaluation (src\lib\db\prisma.ts:68:35)
+    at module evaluation (src\lib\db\prismaClient.ts:8:1)
+    at getDatabaseClient (src\lib\db\client.ts:374:27)
+    at module evaluation (src\lib\db\client.ts:383:19)
+    at module evaluation (src\app\api\health\route.ts:7:1)
+    at Object.<anonymous> (C:\Users\priya\.gemini\antigravity\DigitalMEng_repo\.next\dev\server\app\api\health\route.js:5:3)
+  66 |         logDebug('[Prisma] Falling back to standard client with explicit URL');
+  67 |         // Fallback to standard
+> 68 |         prisma = global.prisma || new PrismaClient({
+     |                                   ^
+  69 |             datasources: { db: { url: connectionString } }
+  70 |         });
+  71 |     } {
+  page: '/api/health'
+}
+ GET /api/health 500 in 2.8s (compile: 2.2s, proxy.ts: 9ms, render: 595ms)
+  Reload env: .env.local

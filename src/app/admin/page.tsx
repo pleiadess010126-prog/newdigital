@@ -44,7 +44,9 @@ import {
     LogOut,
     Home,
     Loader2,
+    Gift,
 } from 'lucide-react';
+import AdminAffiliatePanel from '@/components/AdminAffiliatePanel';
 
 // API Test Status types
 type TestStatus = 'idle' | 'testing' | 'success' | 'error';
@@ -93,7 +95,7 @@ const mockApiUsage = [
     { provider: 'Stability AI', calls: 28934, cost: 890.45, status: 'healthy' },
 ];
 
-type AdminTab = 'overview' | 'users' | 'billing' | 'analytics' | 'system' | 'settings';
+type AdminTab = 'overview' | 'users' | 'billing' | 'analytics' | 'affiliates' | 'system' | 'settings';
 
 export default function AdminPage() {
     const router = useRouter();
@@ -114,6 +116,13 @@ export default function AdminPage() {
         stabilityai: '',
     });
 
+    // Razorpay Keys State
+    const [razorpayKeys, setRazorpayKeys] = useState({
+        keyId: '',
+        keySecret: '',
+        webhookSecret: '',
+    });
+
     // Test Status States
     const [testResults, setTestResults] = useState<Record<string, ApiTestResult>>({
         openai: { status: 'idle' },
@@ -123,7 +132,24 @@ export default function AdminPage() {
         pictory: { status: 'idle' },
         elevenlabs: { status: 'idle' },
         stabilityai: { status: 'idle' },
+        razorpay: { status: 'idle' },
     });
+
+    // API Balance State
+    interface ApiBalance {
+        service: string;
+        status: 'active' | 'inactive' | 'low' | 'error';
+        balance?: number;
+        used?: number;
+        limit?: number;
+        unit: string;
+        percentage: number;
+        message?: string;
+    }
+
+    const [apiBalances, setApiBalances] = useState<ApiBalance[]>([]);
+    const [balancesLoading, setBalancesLoading] = useState(false);
+    const [lastBalanceUpdate, setLastBalanceUpdate] = useState<string | null>(null);
 
     // Toast notification state
     const [toast, setToast] = useState<{ show: boolean; message: string; type: 'success' | 'error' | 'info' }>({
@@ -215,6 +241,68 @@ export default function AdminPage() {
         showToast('All connections tested!', 'success');
     };
 
+    // Test Razorpay connection
+    const testRazorpayConnection = async () => {
+        if (!razorpayKeys.keyId || !razorpayKeys.keySecret) {
+            showToast('Please enter Razorpay Key ID and Key Secret first', 'error');
+            return;
+        }
+
+        setTestResults(prev => ({
+            ...prev,
+            razorpay: { status: 'testing' },
+        }));
+
+        try {
+            const response = await fetch('/api/razorpay/test-connection', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    keyId: razorpayKeys.keyId,
+                    keySecret: razorpayKeys.keySecret,
+                }),
+            });
+
+            const result = await response.json();
+
+            setTestResults(prev => ({
+                ...prev,
+                razorpay: {
+                    status: result.success ? 'success' : 'error',
+                    message: result.message
+                },
+            }));
+
+            let toastMessage = result.message;
+            if (result.success && result.details) {
+                toastMessage += ` (${result.details.totalOrders} orders found)`;
+            }
+
+            showToast(toastMessage, result.success ? 'success' : 'error');
+        } catch (error) {
+            setTestResults(prev => ({
+                ...prev,
+                razorpay: { status: 'error', message: 'Connection failed - Network error' },
+            }));
+            showToast('Failed to test Razorpay connection - Network error', 'error');
+        }
+    };
+
+    // Handle Razorpay key change
+    const handleRazorpayKeyChange = (field: keyof typeof razorpayKeys, value: string) => {
+        setRazorpayKeys(prev => ({
+            ...prev,
+            [field]: value,
+        }));
+        // Reset test status when key changes
+        setTestResults(prev => ({
+            ...prev,
+            razorpay: { status: 'idle' },
+        }));
+    };
+
     // Handle API key change
     const handleApiKeyChange = (service: keyof typeof apiKeys, value: string) => {
         setApiKeys(prev => ({
@@ -242,6 +330,85 @@ export default function AdminPage() {
         }
     };
 
+    // Fetch API balances from all services
+    const fetchApiBalances = async () => {
+        setBalancesLoading(true);
+        try {
+            // Only send keys that are actually configured (non-empty strings)
+            const openaiKey = apiKeys.openai || process.env.NEXT_PUBLIC_OPENAI_API_KEY || '';
+            const anthropicKey = apiKeys.anthropic || process.env.NEXT_PUBLIC_ANTHROPIC_API_KEY || '';
+            const elevenlabsKey = apiKeys.elevenlabs || process.env.NEXT_PUBLIC_ELEVENLABS_API_KEY || '';
+            const didKey = apiKeys.did || process.env.NEXT_PUBLIC_DID_API_KEY || '';
+            const stabilityKey = apiKeys.stabilityai || process.env.NEXT_PUBLIC_STABILITY_API_KEY || '';
+            const razorpayKeyId = razorpayKeys.keyId || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || '';
+            const razorpayKeySecret = razorpayKeys.keySecret || '';
+
+            const response = await fetch('/api/billing/balances', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    // Only send if the key is non-empty
+                    openaiKey: openaiKey.trim() || undefined,
+                    anthropicKey: anthropicKey.trim() || undefined,
+                    elevenlabsKey: elevenlabsKey.trim() || undefined,
+                    didKey: didKey.trim() || undefined,
+                    stabilityKey: stabilityKey.trim() || undefined,
+                    razorpayKeyId: razorpayKeyId.trim() || undefined,
+                    razorpayKeySecret: razorpayKeySecret.trim() || undefined,
+                }),
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                setApiBalances(result.balances);
+                setLastBalanceUpdate(result.fetchedAt);
+                showToast('API balances updated successfully', 'success');
+            } else {
+                showToast('Failed to fetch some balances', 'error');
+            }
+        } catch (error) {
+            showToast('Failed to fetch API balances', 'error');
+        } finally {
+            setBalancesLoading(false);
+        }
+    };
+
+    // Get balance for a specific service
+    const getBalance = (serviceName: string): ApiBalance | undefined => {
+        return apiBalances.find(b => b.service === serviceName);
+    };
+
+    // Get status badge color
+    const getStatusColor = (status: string) => {
+        switch (status) {
+            case 'active':
+                return 'bg-emerald-500/20 text-emerald-400';
+            case 'low':
+                return 'bg-amber-500/20 text-amber-400';
+            case 'error':
+                return 'bg-red-500/20 text-red-400';
+            default:
+                return 'bg-slate-500/20 text-slate-400';
+        }
+    };
+
+    // Get progress bar color
+    const getProgressColor = (status: string) => {
+        switch (status) {
+            case 'active':
+                return 'bg-emerald-500';
+            case 'low':
+                return 'bg-amber-500';
+            case 'error':
+                return 'bg-red-500';
+            default:
+                return 'bg-slate-500';
+        }
+    };
+
     // Check admin access
     useEffect(() => {
         // In production, check if user is admin
@@ -253,6 +420,7 @@ export default function AdminPage() {
         { id: 'users' as AdminTab, label: 'Users', icon: Users },
         { id: 'billing' as AdminTab, label: 'Billing', icon: CreditCard },
         { id: 'analytics' as AdminTab, label: 'Analytics', icon: TrendingUp },
+        { id: 'affiliates' as AdminTab, label: 'Affiliates', icon: Gift },
         { id: 'system' as AdminTab, label: 'System', icon: Server },
         { id: 'settings' as AdminTab, label: 'Settings', icon: Settings },
     ];
@@ -657,65 +825,421 @@ export default function AdminPage() {
 
                     {/* Billing Tab */}
                     {activeTab === 'billing' && (
-                        <div className="space-y-6">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <h2 className="text-2xl font-bold text-white">Billing & Revenue</h2>
-                                    <p className="text-slate-400">Monitor revenue, subscriptions, and payments</p>
+                        <div className="flex gap-6">
+                            {/* Main Content */}
+                            <div className="flex-1 space-y-6">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <h2 className="text-2xl font-bold text-white">Billing & Revenue</h2>
+                                        <p className="text-slate-400">Monitor revenue, subscriptions, and payments</p>
+                                    </div>
+                                </div>
+
+                                {/* Revenue Stats */}
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6">
+                                        <h3 className="text-sm text-slate-400 mb-2">Total Revenue (All Time)</h3>
+                                        <p className="text-3xl font-bold text-white">${mockStats.totalRevenue.toLocaleString()}</p>
+                                        <p className="text-sm text-emerald-400 mt-2 flex items-center gap-1">
+                                            <ArrowUpRight className="w-4 h-4" />
+                                            +23.5% from last year
+                                        </p>
+                                    </div>
+                                    <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6">
+                                        <h3 className="text-sm text-slate-400 mb-2">MRR (Monthly Recurring)</h3>
+                                        <p className="text-3xl font-bold text-white">${mockStats.revenueThisMonth.toLocaleString()}</p>
+                                        <p className="text-sm text-emerald-400 mt-2 flex items-center gap-1">
+                                            <ArrowUpRight className="w-4 h-4" />
+                                            +8.2% from last month
+                                        </p>
+                                    </div>
+                                    <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6">
+                                        <h3 className="text-sm text-slate-400 mb-2">Average Revenue Per User</h3>
+                                        <p className="text-3xl font-bold text-white">$87.50</p>
+                                        <p className="text-sm text-emerald-400 mt-2 flex items-center gap-1">
+                                            <ArrowUpRight className="w-4 h-4" />
+                                            +5.1% improvement
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* Subscription Breakdown */}
+                                <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6">
+                                    <h3 className="text-lg font-bold text-white mb-4">Subscription Breakdown</h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                        <div className="p-4 bg-slate-700/50 rounded-xl">
+                                            <p className="text-slate-400 text-sm">Free</p>
+                                            <p className="text-2xl font-bold text-white">5,234</p>
+                                            <p className="text-xs text-slate-400">40.7%</p>
+                                        </div>
+                                        <div className="p-4 bg-blue-500/20 rounded-xl border border-blue-500/30">
+                                            <p className="text-blue-400 text-sm">Starter ($79/mo)</p>
+                                            <p className="text-2xl font-bold text-white">3,421</p>
+                                            <p className="text-xs text-blue-300">26.6% • $270K MRR</p>
+                                        </div>
+                                        <div className="p-4 bg-purple-500/20 rounded-xl border border-purple-500/30">
+                                            <p className="text-purple-400 text-sm">Pro ($199/mo)</p>
+                                            <p className="text-2xl font-bold text-white">2,156</p>
+                                            <p className="text-xs text-purple-300">16.8% • $429K MRR</p>
+                                        </div>
+                                        <div className="p-4 bg-amber-500/20 rounded-xl border border-amber-500/30">
+                                            <p className="text-amber-400 text-sm">Enterprise ($599/mo)</p>
+                                            <p className="text-2xl font-bold text-white">456</p>
+                                            <p className="text-xs text-amber-300">3.5% • $273K MRR</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Payment Gateway Stats */}
+                                <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6">
+                                    <h3 className="text-lg font-bold text-white mb-4">Payment Gateway Performance</h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {/* Stripe Stats */}
+                                        <div className="p-4 bg-gradient-to-br from-violet-500/10 to-purple-600/10 rounded-xl border border-violet-500/30">
+                                            <div className="flex items-center gap-3 mb-3">
+                                                <div className="w-10 h-10 bg-violet-500/20 rounded-lg flex items-center justify-center">
+                                                    <CreditCard className="w-5 h-5 text-violet-400" />
+                                                </div>
+                                                <div>
+                                                    <p className="font-semibold text-white">Stripe</p>
+                                                    <p className="text-xs text-slate-400">Global Payments (USD)</p>
+                                                </div>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-3 mt-4">
+                                                <div>
+                                                    <p className="text-xs text-slate-400">This Month</p>
+                                                    <p className="text-lg font-bold text-white">$38,420</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs text-slate-400">Transactions</p>
+                                                    <p className="text-lg font-bold text-white">1,247</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs text-slate-400">Success Rate</p>
+                                                    <p className="text-lg font-bold text-emerald-400">98.7%</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs text-slate-400">Avg. Transaction</p>
+                                                    <p className="text-lg font-bold text-white">$30.81</p>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Razorpay Stats */}
+                                        <div className="p-4 bg-gradient-to-br from-blue-500/10 to-cyan-600/10 rounded-xl border border-blue-500/30">
+                                            <div className="flex items-center gap-3 mb-3">
+                                                <div className="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                                                    <CreditCard className="w-5 h-5 text-blue-400" />
+                                                </div>
+                                                <div>
+                                                    <p className="font-semibold text-white">Razorpay</p>
+                                                    <p className="text-xs text-slate-400">India Payments (INR)</p>
+                                                </div>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-3 mt-4">
+                                                <div>
+                                                    <p className="text-xs text-slate-400">This Month</p>
+                                                    <p className="text-lg font-bold text-white">₹9,42,580</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs text-slate-400">Transactions</p>
+                                                    <p className="text-lg font-bold text-white">892</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs text-slate-400">Success Rate</p>
+                                                    <p className="text-lg font-bold text-emerald-400">97.4%</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs text-slate-400">Avg. Transaction</p>
+                                                    <p className="text-lg font-bold text-white">₹1,057</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
-                            {/* Revenue Stats */}
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6">
-                                    <h3 className="text-sm text-slate-400 mb-2">Total Revenue (All Time)</h3>
-                                    <p className="text-3xl font-bold text-white">${mockStats.totalRevenue.toLocaleString()}</p>
-                                    <p className="text-sm text-emerald-400 mt-2 flex items-center gap-1">
-                                        <ArrowUpRight className="w-4 h-4" />
-                                        +23.5% from last year
-                                    </p>
-                                </div>
-                                <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6">
-                                    <h3 className="text-sm text-slate-400 mb-2">MRR (Monthly Recurring)</h3>
-                                    <p className="text-3xl font-bold text-white">${mockStats.revenueThisMonth.toLocaleString()}</p>
-                                    <p className="text-sm text-emerald-400 mt-2 flex items-center gap-1">
-                                        <ArrowUpRight className="w-4 h-4" />
-                                        +8.2% from last month
-                                    </p>
-                                </div>
-                                <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6">
-                                    <h3 className="text-sm text-slate-400 mb-2">Average Revenue Per User</h3>
-                                    <p className="text-3xl font-bold text-white">$87.50</p>
-                                    <p className="text-sm text-emerald-400 mt-2 flex items-center gap-1">
-                                        <ArrowUpRight className="w-4 h-4" />
-                                        +5.1% improvement
-                                    </p>
-                                </div>
-                            </div>
+                            {/* Right Sidebar - API Balance Details */}
+                            <div className="w-80 space-y-4">
+                                <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                                            <Zap className="w-4 h-4 text-amber-400" />
+                                            API Credits & Balance
+                                        </h3>
+                                        {lastBalanceUpdate && (
+                                            <span className="text-xs text-slate-500">
+                                                {new Date(lastBalanceUpdate).toLocaleTimeString()}
+                                            </span>
+                                        )}
+                                    </div>
 
-                            {/* Subscription Breakdown */}
-                            <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6">
-                                <h3 className="text-lg font-bold text-white mb-4">Subscription Breakdown</h3>
-                                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                                    <div className="p-4 bg-slate-700/50 rounded-xl">
-                                        <p className="text-slate-400 text-sm">Free</p>
-                                        <p className="text-2xl font-bold text-white">5,234</p>
-                                        <p className="text-xs text-slate-400">40.7%</p>
+                                    {balancesLoading ? (
+                                        <div className="flex items-center justify-center py-8">
+                                            <Loader2 className="w-6 h-6 text-violet-400 animate-spin" />
+                                            <span className="ml-2 text-sm text-slate-400">Fetching balances...</span>
+                                        </div>
+                                    ) : apiBalances.length === 0 ? (
+                                        <div className="text-center py-6">
+                                            <p className="text-slate-400 text-sm mb-3">No balances loaded yet</p>
+                                            <button
+                                                onClick={fetchApiBalances}
+                                                className="px-4 py-2 bg-violet-500/20 text-violet-400 rounded-lg text-sm hover:bg-violet-500/30"
+                                            >
+                                                Load Balances
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-4">
+                                            {/* OpenAI */}
+                                            {(() => {
+                                                const balance = getBalance('OpenAI');
+                                                return (
+                                                    <div className="p-3 bg-slate-700/50 rounded-xl">
+                                                        <div className="flex items-center justify-between mb-2">
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="w-8 h-8 bg-emerald-500/20 rounded-lg flex items-center justify-center">
+                                                                    <Globe className="w-4 h-4 text-emerald-400" />
+                                                                </div>
+                                                                <span className="text-sm font-medium text-white">OpenAI</span>
+                                                            </div>
+                                                            <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(balance?.status || 'inactive')}`}>
+                                                                {balance?.status === 'active' ? 'Active' : balance?.status === 'low' ? 'Low' : balance?.status || 'N/A'}
+                                                            </span>
+                                                        </div>
+                                                        <div className="mt-2">
+                                                            <div className="flex justify-between text-xs mb-1">
+                                                                <span className="text-slate-400">Balance</span>
+                                                                <span className="text-white font-medium">
+                                                                    {balance?.balance !== undefined ? `$${balance.balance.toFixed(2)}` : balance?.message || 'Not configured'}
+                                                                </span>
+                                                            </div>
+                                                            <div className="h-1.5 bg-slate-600 rounded-full overflow-hidden">
+                                                                <div className={`h-full ${getProgressColor(balance?.status || 'inactive')} rounded-full`} style={{ width: `${balance?.percentage || 0}%` }}></div>
+                                                            </div>
+                                                            {balance?.used !== undefined && (
+                                                                <p className="text-xs text-slate-500 mt-1">${balance.used.toFixed(2)} used this month</p>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })()}
+
+                                            {/* Anthropic */}
+                                            {(() => {
+                                                const balance = getBalance('Anthropic');
+                                                return (
+                                                    <div className="p-3 bg-slate-700/50 rounded-xl">
+                                                        <div className="flex items-center justify-between mb-2">
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="w-8 h-8 bg-orange-500/20 rounded-lg flex items-center justify-center">
+                                                                    <Zap className="w-4 h-4 text-orange-400" />
+                                                                </div>
+                                                                <span className="text-sm font-medium text-white">Anthropic</span>
+                                                            </div>
+                                                            <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(balance?.status || 'inactive')}`}>
+                                                                {balance?.status === 'active' ? 'Active' : balance?.status || 'N/A'}
+                                                            </span>
+                                                        </div>
+                                                        <div className="mt-2">
+                                                            <div className="flex justify-between text-xs mb-1">
+                                                                <span className="text-slate-400">Status</span>
+                                                                <span className="text-white font-medium">
+                                                                    {balance?.message || 'Not configured'}
+                                                                </span>
+                                                            </div>
+                                                            <div className="h-1.5 bg-slate-600 rounded-full overflow-hidden">
+                                                                <div className={`h-full ${getProgressColor(balance?.status || 'inactive')} rounded-full`} style={{ width: `${balance?.percentage || 0}%` }}></div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })()}
+
+                                            {/* ElevenLabs */}
+                                            {(() => {
+                                                const balance = getBalance('ElevenLabs');
+                                                return (
+                                                    <div className="p-3 bg-slate-700/50 rounded-xl">
+                                                        <div className="flex items-center justify-between mb-2">
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="w-8 h-8 bg-cyan-500/20 rounded-lg flex items-center justify-center">
+                                                                    <Mic className="w-4 h-4 text-cyan-400" />
+                                                                </div>
+                                                                <span className="text-sm font-medium text-white">ElevenLabs</span>
+                                                            </div>
+                                                            <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(balance?.status || 'inactive')}`}>
+                                                                {balance?.status === 'active' ? 'Active' : balance?.status === 'low' ? 'Low' : balance?.status || 'N/A'}
+                                                            </span>
+                                                        </div>
+                                                        <div className="mt-2">
+                                                            <div className="flex justify-between text-xs mb-1">
+                                                                <span className="text-slate-400">Characters</span>
+                                                                <span className="text-white font-medium">
+                                                                    {balance?.message || 'Not configured'}
+                                                                </span>
+                                                            </div>
+                                                            <div className="h-1.5 bg-slate-600 rounded-full overflow-hidden">
+                                                                <div className={`h-full ${getProgressColor(balance?.status || 'inactive')} rounded-full`} style={{ width: `${balance?.percentage || 0}%` }}></div>
+                                                            </div>
+                                                            {balance?.balance !== undefined && (
+                                                                <p className="text-xs text-slate-500 mt-1">{balance.balance.toLocaleString()} remaining</p>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })()}
+
+                                            {/* D-ID */}
+                                            {(() => {
+                                                const balance = getBalance('D-ID');
+                                                return (
+                                                    <div className="p-3 bg-slate-700/50 rounded-xl">
+                                                        <div className="flex items-center justify-between mb-2">
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="w-8 h-8 bg-pink-500/20 rounded-lg flex items-center justify-center">
+                                                                    <Video className="w-4 h-4 text-pink-400" />
+                                                                </div>
+                                                                <span className="text-sm font-medium text-white">D-ID</span>
+                                                            </div>
+                                                            <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(balance?.status || 'inactive')}`}>
+                                                                {balance?.status === 'active' ? 'Active' : balance?.status === 'low' ? 'Low' : balance?.status || 'N/A'}
+                                                            </span>
+                                                        </div>
+                                                        <div className="mt-2">
+                                                            <div className="flex justify-between text-xs mb-1">
+                                                                <span className="text-slate-400">Credits</span>
+                                                                <span className="text-white font-medium">
+                                                                    {balance?.message || 'Not configured'}
+                                                                </span>
+                                                            </div>
+                                                            <div className="h-1.5 bg-slate-600 rounded-full overflow-hidden">
+                                                                <div className={`h-full ${getProgressColor(balance?.status || 'inactive')} rounded-full`} style={{ width: `${balance?.percentage || 0}%` }}></div>
+                                                            </div>
+                                                            {balance?.status === 'low' && (
+                                                                <p className="text-xs text-amber-400 mt-1">⚠️ Low credits - Refill soon</p>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })()}
+
+                                            {/* Stability AI */}
+                                            {(() => {
+                                                const balance = getBalance('Stability AI');
+                                                return (
+                                                    <div className="p-3 bg-slate-700/50 rounded-xl">
+                                                        <div className="flex items-center justify-between mb-2">
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center">
+                                                                    <ImageIcon className="w-4 h-4 text-purple-400" />
+                                                                </div>
+                                                                <span className="text-sm font-medium text-white">Stability AI</span>
+                                                            </div>
+                                                            <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(balance?.status || 'inactive')}`}>
+                                                                {balance?.status === 'active' ? 'Active' : balance?.status === 'low' ? 'Low' : balance?.status || 'N/A'}
+                                                            </span>
+                                                        </div>
+                                                        <div className="mt-2">
+                                                            <div className="flex justify-between text-xs mb-1">
+                                                                <span className="text-slate-400">Credits</span>
+                                                                <span className="text-white font-medium">
+                                                                    {balance?.message || 'Not configured'}
+                                                                </span>
+                                                            </div>
+                                                            <div className="h-1.5 bg-slate-600 rounded-full overflow-hidden">
+                                                                <div className={`h-full ${getProgressColor(balance?.status || 'inactive')} rounded-full`} style={{ width: `${balance?.percentage || 0}%` }}></div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })()}
+
+                                            {/* Razorpay */}
+                                            {(() => {
+                                                const balance = getBalance('Razorpay');
+                                                return (
+                                                    <div className="p-3 bg-slate-700/50 rounded-xl">
+                                                        <div className="flex items-center justify-between mb-2">
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                                                                    <CreditCard className="w-4 h-4 text-blue-400" />
+                                                                </div>
+                                                                <span className="text-sm font-medium text-white">Razorpay</span>
+                                                            </div>
+                                                            <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(balance?.status || 'inactive')}`}>
+                                                                {balance?.status === 'active' ? 'Active' : balance?.status || 'N/A'}
+                                                            </span>
+                                                        </div>
+                                                        <div className="mt-2">
+                                                            <div className="flex justify-between text-xs mb-1">
+                                                                <span className="text-slate-400">Balance</span>
+                                                                <span className="text-white font-medium">
+                                                                    {balance?.message || 'Not configured'}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })()}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Quick Actions */}
+                                <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5">
+                                    <h3 className="text-sm font-bold text-white mb-3">Quick Actions</h3>
+                                    <div className="space-y-2">
+                                        <button className="w-full flex items-center gap-2 px-3 py-2 bg-violet-500/20 text-violet-400 rounded-lg text-sm hover:bg-violet-500/30 transition-colors">
+                                            <CreditCard className="w-4 h-4" />
+                                            Add API Credits
+                                        </button>
+                                        <button
+                                            onClick={fetchApiBalances}
+                                            disabled={balancesLoading}
+                                            className="w-full flex items-center gap-2 px-3 py-2 bg-slate-700/50 text-slate-300 rounded-lg text-sm hover:bg-slate-700 transition-colors disabled:opacity-50"
+                                        >
+                                            <RefreshCw className={`w-4 h-4 ${balancesLoading ? 'animate-spin' : ''}`} />
+                                            {balancesLoading ? 'Refreshing...' : 'Refresh Balances'}
+                                        </button>
+                                        <button className="w-full flex items-center gap-2 px-3 py-2 bg-slate-700/50 text-slate-300 rounded-lg text-sm hover:bg-slate-700 transition-colors">
+                                            <Download className="w-4 h-4" />
+                                            Export Usage Report
+                                        </button>
                                     </div>
-                                    <div className="p-4 bg-blue-500/20 rounded-xl border border-blue-500/30">
-                                        <p className="text-blue-400 text-sm">Starter ($79/mo)</p>
-                                        <p className="text-2xl font-bold text-white">3,421</p>
-                                        <p className="text-xs text-blue-300">26.6% • $270K MRR</p>
-                                    </div>
-                                    <div className="p-4 bg-purple-500/20 rounded-xl border border-purple-500/30">
-                                        <p className="text-purple-400 text-sm">Pro ($199/mo)</p>
-                                        <p className="text-2xl font-bold text-white">2,156</p>
-                                        <p className="text-xs text-purple-300">16.8% • $429K MRR</p>
-                                    </div>
-                                    <div className="p-4 bg-amber-500/20 rounded-xl border border-amber-500/30">
-                                        <p className="text-amber-400 text-sm">Enterprise ($599/mo)</p>
-                                        <p className="text-2xl font-bold text-white">456</p>
-                                        <p className="text-xs text-amber-300">3.5% • $273K MRR</p>
+                                </div>
+
+                                {/* Usage Alerts */}
+                                <div className="bg-gradient-to-br from-amber-500/10 to-orange-600/10 border border-amber-500/30 rounded-2xl p-5">
+                                    <h3 className="text-sm font-bold text-amber-400 mb-3 flex items-center gap-2">
+                                        <AlertTriangle className="w-4 h-4" />
+                                        Usage Alerts
+                                    </h3>
+                                    <div className="space-y-2 text-xs">
+                                        {apiBalances.filter(b => b.status === 'low').map((balance, idx) => (
+                                            <div key={idx} className="flex items-start gap-2">
+                                                <span className="text-amber-400 mt-0.5">•</span>
+                                                <p className="text-slate-300">{balance.service} credits low - consider refill</p>
+                                            </div>
+                                        ))}
+                                        {apiBalances.filter(b => b.status === 'error').map((balance, idx) => (
+                                            <div key={idx} className="flex items-start gap-2">
+                                                <span className="text-red-400 mt-0.5">•</span>
+                                                <p className="text-slate-300">{balance.service}: {balance.message}</p>
+                                            </div>
+                                        ))}
+                                        {apiBalances.filter(b => b.status === 'active').length === apiBalances.length && apiBalances.length > 0 && (
+                                            <div className="flex items-start gap-2">
+                                                <span className="text-emerald-400 mt-0.5">•</span>
+                                                <p className="text-slate-300">All services running normally</p>
+                                            </div>
+                                        )}
+                                        {apiBalances.length === 0 && (
+                                            <div className="flex items-start gap-2">
+                                                <span className="text-slate-400 mt-0.5">•</span>
+                                                <p className="text-slate-400">Click &quot;Refresh Balances&quot; to check API status</p>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -1193,8 +1717,8 @@ export default function AdminPage() {
                                         <DollarSign className="w-5 h-5 text-emerald-400" />
                                     </div>
                                     <div>
-                                        <h3 className="text-lg font-bold text-white">Payment & Billing (Stripe)</h3>
-                                        <p className="text-sm text-slate-400">Configure Stripe API keys and subscription price IDs</p>
+                                        <h3 className="text-lg font-bold text-white">Payment & Billing (Stripe + Razorpay)</h3>
+                                        <p className="text-sm text-slate-400">Configure payment gateway API keys for global and India payments</p>
                                     </div>
                                 </div>
 
@@ -1283,6 +1807,123 @@ export default function AdminPage() {
                                                 <input
                                                     type="text"
                                                     placeholder="price_xxx"
+                                                    className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:border-violet-500 focus:outline-none"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Razorpay Keys */}
+                                    <div className="space-y-4 p-4 bg-slate-700/30 rounded-xl border-2 border-blue-500/30">
+                                        <div className="flex items-center justify-between">
+                                            <h4 className="text-sm font-semibold text-blue-400 flex items-center gap-2">
+                                                <CreditCard className="w-4 h-4" />
+                                                Razorpay API Keys (India)
+                                            </h4>
+                                            <span className="text-xs px-2 py-1 bg-blue-500/20 text-blue-300 rounded-full">For INR payments</span>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs text-slate-400 mb-1">Key ID</label>
+                                            <input
+                                                type="text"
+                                                placeholder="rzp_live_... or rzp_test_..."
+                                                value={razorpayKeys.keyId}
+                                                onChange={(e) => handleRazorpayKeyChange('keyId', e.target.value)}
+                                                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:border-violet-500 focus:outline-none"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs text-slate-400 mb-1">Key Secret</label>
+                                            <input
+                                                type="password"
+                                                placeholder="Enter Razorpay Key Secret"
+                                                value={razorpayKeys.keySecret}
+                                                onChange={(e) => handleRazorpayKeyChange('keySecret', e.target.value)}
+                                                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:border-violet-500 focus:outline-none"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs text-slate-400 mb-1">Webhook Secret</label>
+                                            <input
+                                                type="password"
+                                                placeholder="Enter Razorpay Webhook Secret"
+                                                value={razorpayKeys.webhookSecret}
+                                                onChange={(e) => handleRazorpayKeyChange('webhookSecret', e.target.value)}
+                                                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:border-violet-500 focus:outline-none"
+                                            />
+                                        </div>
+                                        <div className="flex items-center justify-between pt-2">
+                                            <p className="text-xs text-slate-500">Get keys at: dashboard.razorpay.com</p>
+                                            <button
+                                                onClick={testRazorpayConnection}
+                                                disabled={testResults.razorpay.status === 'testing'}
+                                                className={`px-4 py-2 rounded-lg text-xs flex items-center gap-2 ${getTestButtonStyle(testResults.razorpay.status)}`}
+                                            >
+                                                {testResults.razorpay.status === 'testing' ? (
+                                                    <><Loader2 className="w-3 h-3 animate-spin" /> Testing...</>
+                                                ) : testResults.razorpay.status === 'success' ? (
+                                                    <><CheckCircle2 className="w-3 h-3" /> Connected</>
+                                                ) : testResults.razorpay.status === 'error' ? (
+                                                    <><XCircle className="w-3 h-3" /> Failed</>
+                                                ) : (
+                                                    'Test Connection'
+                                                )}
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Razorpay Plan IDs */}
+                                    <div className="space-y-4 p-4 bg-slate-700/30 rounded-xl">
+                                        <h4 className="text-sm font-semibold text-blue-400 flex items-center gap-2">
+                                            <DollarSign className="w-4 h-4" />
+                                            Razorpay Subscription Plan IDs
+                                        </h4>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div>
+                                                <label className="block text-xs text-slate-400 mb-1">Starter Monthly</label>
+                                                <input
+                                                    type="text"
+                                                    placeholder="plan_xxx"
+                                                    className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:border-violet-500 focus:outline-none"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs text-slate-400 mb-1">Starter Yearly</label>
+                                                <input
+                                                    type="text"
+                                                    placeholder="plan_xxx"
+                                                    className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:border-violet-500 focus:outline-none"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs text-slate-400 mb-1">Pro Monthly</label>
+                                                <input
+                                                    type="text"
+                                                    placeholder="plan_xxx"
+                                                    className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:border-violet-500 focus:outline-none"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs text-slate-400 mb-1">Pro Yearly</label>
+                                                <input
+                                                    type="text"
+                                                    placeholder="plan_xxx"
+                                                    className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:border-violet-500 focus:outline-none"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs text-slate-400 mb-1">Enterprise Monthly</label>
+                                                <input
+                                                    type="text"
+                                                    placeholder="plan_xxx"
+                                                    className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:border-violet-500 focus:outline-none"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs text-slate-400 mb-1">Enterprise Yearly</label>
+                                                <input
+                                                    type="text"
+                                                    placeholder="plan_xxx"
                                                     className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:border-violet-500 focus:outline-none"
                                                 />
                                             </div>
@@ -1580,6 +2221,17 @@ export default function AdminPage() {
                                     <p className="text-sm text-emerald-400 mt-1">+18% this month</p>
                                 </div>
                             </div>
+                        </div>
+                    )}
+
+                    {/* Affiliates Tab */}
+                    {activeTab === 'affiliates' && (
+                        <div className="space-y-6">
+                            <div>
+                                <h2 className="text-2xl font-bold text-white">Affiliate Program Management</h2>
+                                <p className="text-slate-400">Manage affiliates, approve applications, and process payouts</p>
+                            </div>
+                            <AdminAffiliatePanel />
                         </div>
                     )}
                 </main>

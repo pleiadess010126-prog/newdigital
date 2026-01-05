@@ -4,6 +4,7 @@
 // =================================================================
 
 import { NextResponse } from 'next/server';
+import { db } from '@/lib/db/client';
 
 interface HealthStatus {
     status: 'healthy' | 'degraded' | 'unhealthy';
@@ -35,11 +36,13 @@ const serverStartTime = Date.now();
  */
 async function checkDatabase(): Promise<ServiceStatus> {
     try {
-        // In production, this would ping DynamoDB
         const startTime = Date.now();
 
-        // Simulate database check (replace with actual DynamoDB ping)
-        await new Promise(resolve => setTimeout(resolve, 10));
+        // Use the smart db client's health check
+        // Check if db.connect exists or just use a simple query
+        // Based on our Client interface, we don't have a healthCheck method, 
+        // but we can try to get a count of organizations or similar
+        await db.getOrganization('health-check-non-existent');
 
         const latency = Date.now() - startTime;
 
@@ -48,6 +51,7 @@ async function checkDatabase(): Promise<ServiceStatus> {
             latency,
         };
     } catch (error) {
+        console.error('[Health] Database check failed:', error);
         return {
             status: 'down',
             message: error instanceof Error ? error.message : 'Database connection failed',

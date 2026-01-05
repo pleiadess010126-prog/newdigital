@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 import { AuthProvider } from '@/lib/auth/AuthContext'
 import { OrganizationProvider } from '@/lib/db/OrganizationContext'
+import { AffiliateProvider } from '@/lib/affiliate/AffiliateContext'
 import ClientLayout from '@/components/ClientLayout'
 
 export const metadata: Metadata = {
@@ -19,9 +20,11 @@ export default function RootLayout({
       <body className="antialiased">
         <AuthProvider>
           <OrganizationProvider>
-            <ClientLayout>
-              {children}
-            </ClientLayout>
+            <AffiliateProvider>
+              <ClientLayout>
+                {children}
+              </ClientLayout>
+            </AffiliateProvider>
           </OrganizationProvider>
         </AuthProvider>
       </body>

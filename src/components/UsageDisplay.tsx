@@ -67,12 +67,18 @@ export default function UsageDisplay() {
 
     const getPlanBadgeColor = (planId: string) => {
         switch (planId) {
-            case 'free': return 'bg-slate-100 text-slate-700';
-            case 'starter': return 'bg-blue-100 text-blue-700';
+            case 'free': return 'bg-emerald-100 text-emerald-700';
+            case 'lite': return 'bg-blue-100 text-blue-700';
+            case 'starter': return 'bg-cyan-100 text-cyan-700';
             case 'pro': return 'bg-violet-100 text-violet-700';
             case 'enterprise': return 'bg-orange-100 text-orange-700';
             default: return 'bg-slate-100 text-slate-700';
         }
+    };
+
+    const getPlanDisplayName = (planId: string) => {
+        if (planId === 'free') return '15-Day Trial';
+        return planId.charAt(0).toUpperCase() + planId.slice(1) + ' Plan';
     };
 
     return (
@@ -85,8 +91,8 @@ export default function UsageDisplay() {
                         Usage & Billing
                     </h3>
                     <div className="flex items-center gap-2 mt-1">
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold capitalize ${getPlanBadgeColor(plan)}`}>
-                            {plan} Plan
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${getPlanBadgeColor(plan)}`}>
+                            {getPlanDisplayName(plan)}
                         </span>
                         <p className="text-sm text-slate-500">This month's usage</p>
                     </div>
@@ -235,7 +241,7 @@ export default function UsageDisplay() {
                             <Crown className="w-5 h-5" />
                             <span className="font-semibold">Upgrade to Pro</span>
                         </div>
-                        <p className="text-xs text-white/80 mt-1">Get 500 content pieces/month + all platforms</p>
+                        <p className="text-xs text-white/80 mt-1">Get 400 content pieces/month + all platforms</p>
                     </Link>
                 )}
             </div>

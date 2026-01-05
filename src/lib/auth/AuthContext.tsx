@@ -84,8 +84,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const data = await response.json();
 
             if (response.ok && data.success) {
-                setUser(data.user);
-                clientSession.setUser(data.user);
+                // API response wraps user in data.data.user
+                const user = data.data?.user || data.user;
+                setUser(user);
+                clientSession.setUser(user);
                 return { success: true };
             }
 

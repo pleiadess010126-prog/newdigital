@@ -1,0 +1,76 @@
+
+> digitalmeng-v3@0.1.0 dev
+> next dev
+
+▲ Next.js 16.1.1 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.1.7:3000
+- Environments: .env.local, .env
+- Experiments (use with caution):
+  · serverActions
+
+✓ Starting...
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+✓ Ready in 4.8s
+○ Compiling /login ...
+[dotenv@17.2.3] injecting env (0) from .env.local -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+[dotenv@17.2.3] injecting env (0) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+--- NEW INIT SEQUENCE (ADAPTER RESTORED) ---
+[Prisma] Initializing Prisma Client...
+[Prisma] DB URL Found: true
+[Prisma] Using Neon Serverless adapter
+[Prisma] Client created successfully with adapter
+[Prisma] $connect() SUCCESS
+[dotenv@17.2.3] injecting env (0) from .env.local -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+[dotenv@17.2.3] injecting env (0) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+--- NEW INIT SEQUENCE (ADAPTER RESTORED) ---
+[Prisma] Initializing Prisma Client...
+[Prisma] DB URL Found: true
+[Prisma] Using Neon Serverless adapter
+[Prisma] Client created successfully with adapter
+[Prisma] $connect() SUCCESS
+[API] DATABASE_URL present: true
+[API] DATABASE_URL length: 125
+[API] DATABASE_URL preview: postgresql://ne...
+Database health check error: Error: No database host or connection string was set, and key parameters have default values (host: localhost, user: priya, db: priya, password: null). Is an environment variable missing? Alternatively, if you intended to connect with these parameters, please set the host to 'localhost' explicitly.
+    at async GET (src\app\api\db\health\route.ts:29:24)
+  27 |
+  28 |         // Try to query the database
+> 29 |         const result = await prisma.$queryRaw`SELECT 1 as test`;
+     |                        ^
+  30 |
+  31 |         // Get some basic stats
+  32 |         const [orgCount, userCount, campaignCount, contentCount] = await Promise.all([ {
+  clientVersion: '7.2.0'
+}
+ GET /api/db/health 500 in 4.2s (compile: 3.6s, proxy.ts: 53ms, render: 595ms)
+[Health] Database check failed: Error: No database host or connection string was set, and key parameters have default values (host: localhost, user: priya, db: priya, password: null). Is an environment variable missing? Alternatively, if you intended to connect with these parameters, please set the host to 'localhost' explicitly.
+    at ignore-listed frames {
+  clientVersion: '7.2.0'
+}
+ GET /api/health 503 in 708ms (compile: 255ms, proxy.ts: 25ms, render: 428ms)
+ GET /login 200 in 13.0s (compile: 9.0s, proxy.ts: 179ms, render: 3.8s)
+ GET /api/auth/session 200 in 155ms (compile: 108ms, proxy.ts: 19ms, render: 28ms)
+✓ Finished filesystem cache database compaction in 10.6s
+[API] DATABASE_URL present: true
+[API] DATABASE_URL length: 125
+[API] DATABASE_URL preview: postgresql://ne...
+Database health check error: Error: No database host or connection string was set, and key parameters have default values (host: localhost, user: priya, db: priya, password: null). Is an environment variable missing? Alternatively, if you intended to connect with these parameters, please set the host to 'localhost' explicitly.
+    at async GET (src\app\api\db\health\route.ts:29:24)
+  27 |
+  28 |         // Try to query the database
+> 29 |         const result = await prisma.$queryRaw`SELECT 1 as test`;
+     |                        ^
+  30 |
+  31 |         // Get some basic stats
+  32 |         const [orgCount, userCount, campaignCount, contentCount] = await Promise.all([ {
+  clientVersion: '7.2.0'
+}
+ GET /api/db/health 500 in 490ms (compile: 25ms, proxy.ts: 16ms, render: 449ms)
+○ Compiling /api/auth/login ...
+ POST /api/auth/login 200 in 14.1s (compile: 14.0s, proxy.ts: 17ms, render: 26ms)
+ GET /dashboard 200 in 185ms (compile: 105ms, proxy.ts: 13ms, render: 67ms)
+ GET /api/affiliate 200 in 615ms (compile: 458ms, proxy.ts: 144ms, render: 12ms)
+✓ Compiled in 3.2s
+ GET /dashboard 200 in 1883ms (compile: 1042ms, proxy.ts: 489ms, render: 352ms)
+ GET /dashboard 200 in 90ms (compile: 16ms, proxy.ts: 8ms, render: 66ms)

@@ -1,6 +1,13 @@
 // Usage Tracking System for DigitalMEng SaaS
 // Tracks content generation, platform posts, video, voice over, music, images, and enforces plan limits
+// Free tier = 15-day trial only, must upgrade after trial expires
 
+// Trial configuration
+export const TRIAL_CONFIG = {
+    durationDays: 15,           // 15-day free trial
+    planId: 'free',             // Trial uses 'free' plan limits
+    upgradeReminders: [3, 1, 0], // Days before expiry to remind
+};
 export interface UsageLimits {
     contentPerMonth: number;     // -1 for unlimited
     platforms: number;           // -1 for unlimited
@@ -35,11 +42,12 @@ export interface UsageRecord {
     lastUpdated: Date;
 }
 
-// Plan limits configuration - Updated with Video, Audio & Image features
+// Plan limits configuration - Updated January 2026 for 70%+ profit margin
+// Free tier includes Instagram to build user confidence before upgrading
 export const PLAN_LIMITS: Record<string, UsageLimits> = {
     free: {
         contentPerMonth: 10,
-        platforms: 1,
+        platforms: 2,              // WordPress + Instagram (3 posts each)
         apiCalls: 100,
         videoMinutes: 0,           // No AI video on free
         voiceOverCharacters: 0,    // No voice over on free
@@ -48,16 +56,16 @@ export const PLAN_LIMITS: Record<string, UsageLimits> = {
     },
     lite: {
         contentPerMonth: 40,
-        platforms: 2,
+        platforms: 2,              // WordPress + Instagram
         apiCalls: 500,
-        videoMinutes: 0,
-        voiceOverCharacters: 2000,
+        videoMinutes: 0,           // No video on Lite
+        voiceOverCharacters: 2000, // Basic voice for testing
         musicTracks: 2,
         aiImages: 15,
     },
     starter: {
         contentPerMonth: 100,
-        platforms: 3,
+        platforms: 3,              // WordPress + Instagram + YouTube
         apiCalls: 1000,
         videoMinutes: 5,           // 5 minutes of AI video/month
         voiceOverCharacters: 10000, // ~10k chars (~7 min audio)
@@ -65,22 +73,23 @@ export const PLAN_LIMITS: Record<string, UsageLimits> = {
         aiImages: 50,              // 50 AI images/month
     },
     pro: {
-        contentPerMonth: 500,
-        platforms: 5,
-        apiCalls: 10000,
-        videoMinutes: 30,          // 30 minutes of AI video/month
-        voiceOverCharacters: 50000, // ~50k chars (~35 min audio)
+        contentPerMonth: 400,      // Reduced from 500 for margin
+        platforms: 5,              // All major platforms
+        apiCalls: 8000,            // Reduced from 10000
+        videoMinutes: 20,          // Reduced from 30 for 70% margin
+        voiceOverCharacters: 40000, // Reduced from 50k for margin
         musicTracks: -1,           // Unlimited royalty-free music
-        aiImages: 200,             // 200 AI images/month
+        aiImages: 150,             // Reduced from 200 for margin
     },
     enterprise: {
-        contentPerMonth: -1,       // Unlimited
-        platforms: -1,
-        apiCalls: -1,
-        videoMinutes: -1,          // Unlimited
-        voiceOverCharacters: -1,   // Unlimited
+        // Fair-use limits to ensure 70% margin
+        contentPerMonth: 2000,     // Fair-use limit (was unlimited)
+        platforms: -1,             // All platforms
+        apiCalls: 50000,           // High but capped
+        videoMinutes: 60,          // 60 min/month fair-use (was unlimited)
+        voiceOverCharacters: 150000, // 150K chars fair-use (was unlimited)
         musicTracks: -1,           // Unlimited + AI-generated music
-        aiImages: -1,              // Unlimited AI images
+        aiImages: 500,             // Fair-use limit
     },
 };
 
@@ -193,8 +202,89 @@ export function getRecommendedPlan(
     monthlyContent: number,
     platformsNeeded: number
 ): string {
-    if (monthlyContent <= 10 && platformsNeeded <= 1) return 'free';
+    if (monthlyContent <= 40 && platformsNeeded <= 2) return 'lite';
     if (monthlyContent <= 100 && platformsNeeded <= 3) return 'starter';
-    if (monthlyContent <= 500 && platformsNeeded <= 5) return 'pro';
+    if (monthlyContent <= 400 && platformsNeeded <= 5) return 'pro';
     return 'enterprise';
+}
+
+// ==========================================
+// TRIAL MANAGEMENT FUNCTIONS
+// ==========================================
+
+/**
+ * Check if user's trial has expired
+ */
+export function isTrialExpired(trialStartDate: Date): boolean {
+    const now = new Date();
+    const trialEnd = new Date(trialStartDate);
+    trialEnd.setDate(trialEnd.getDate() + TRIAL_CONFIG.durationDays);
+    return now > trialEnd;
+}
+
+/**
+ * Get remaining trial days
+ */
+export function getTrialDaysRemaining(trialStartDate: Date): number {
+    const now = new Date();
+    const trialEnd = new Date(trialStartDate);
+    trialEnd.setDate(trialEnd.getDate() + TRIAL_CONFIG.durationDays);
+
+    const diffMs = trialEnd.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+    return Math.max(0, diffDays);
+}
+
+/**
+ * Get trial expiry date
+ */
+export function getTrialExpiryDate(trialStartDate: Date): Date {
+    const trialEnd = new Date(trialStartDate);
+    trialEnd.setDate(trialEnd.getDate() + TRIAL_CONFIG.durationDays);
+    return trialEnd;
+}
+
+/**
+ * Check if should show trial reminder
+ */
+export function shouldShowTrialReminder(trialStartDate: Date): boolean {
+    const daysRemaining = getTrialDaysRemaining(trialStartDate);
+    return TRIAL_CONFIG.upgradeReminders.includes(daysRemaining);
+}
+
+/**
+ * Format trial status message
+ */
+export function getTrialStatusMessage(trialStartDate: Date): {
+    message: string;
+    urgency: 'info' | 'warning' | 'critical' | 'expired';
+} {
+    const daysRemaining = getTrialDaysRemaining(trialStartDate);
+
+    if (daysRemaining <= 0) {
+        return {
+            message: 'Your 15-day trial has expired. Upgrade now to continue.',
+            urgency: 'expired'
+        };
+    }
+
+    if (daysRemaining === 1) {
+        return {
+            message: 'Last day of your trial! Upgrade now to keep your progress.',
+            urgency: 'critical'
+        };
+    }
+
+    if (daysRemaining <= 3) {
+        return {
+            message: `Only ${daysRemaining} days left in your trial. Upgrade to continue.`,
+            urgency: 'warning'
+        };
+    }
+
+    return {
+        message: `${daysRemaining} days remaining in your trial.`,
+        urgency: 'info'
+    };
 }

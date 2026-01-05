@@ -1,0 +1,55 @@
+
+> digitalmeng-v3@0.1.0 dev
+> next dev
+
+▲ Next.js 16.1.1 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.1.7:3000
+- Environments: .env.local, .env
+- Experiments (use with caution):
+  · serverActions
+
+✓ Starting...
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+✓ Ready in 46.7s
+⨯ ./src/lib/db/prisma.ts:1:1
+Module not found: Can't resolve '../../generated/prisma'
+[0m[31m[1m>[22m[39m[90m 1 |[39m [36mimport[39m { [33mPrismaClient[39m } [36mfrom[39m [32m'../../generated/prisma'[39m[33m;[39m
+ [90m   |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 2 |[39m [36mimport[39m { [33mPrismaNeon[39m } [36mfrom[39m [32m'@prisma/adapter-neon'[39m[33m;[39m
+ [90m 3 |[39m [36mimport[39m { [33mPool[39m[33m,[39m neonConfig } [36mfrom[39m [32m'@neondatabase/serverless'[39m[33m;[39m
+ [90m 4 |[39m [36mimport[39m ws [36mfrom[39m [32m'ws'[39m[33m;[39m[0m
+
+
+
+Import trace:
+  App Route:
+    ./src/lib/db/prisma.ts
+    ./src/lib/db/prismaClient.ts
+    ./src/lib/db/client.ts
+    ./src/app/api/health/route.ts
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+ GET /api/health 500 in 5.7s (compile: 4.7s, proxy.ts: 297ms, render: 731ms)
+⨯ ./src/lib/db/prisma.ts:1:1
+Module not found: Can't resolve '../../generated/prisma'
+[0m[31m[1m>[22m[39m[90m 1 |[39m [36mimport[39m { [33mPrismaClient[39m } [36mfrom[39m [32m'../../generated/prisma'[39m[33m;[39m
+ [90m   |[39m [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+ [90m 2 |[39m [36mimport[39m { [33mPrismaNeon[39m } [36mfrom[39m [32m'@prisma/adapter-neon'[39m[33m;[39m
+ [90m 3 |[39m [36mimport[39m { [33mPool[39m[33m,[39m neonConfig } [36mfrom[39m [32m'@neondatabase/serverless'[39m[33m;[39m
+ [90m 4 |[39m [36mimport[39m ws [36mfrom[39m [32m'ws'[39m[33m;[39m[0m
+
+
+
+Import trace:
+  App Route:
+    ./src/lib/db/prisma.ts
+    ./src/app/api/db/health/route.ts
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+ GET /api/db/health 500 in 2.2s (compile: 1777ms, proxy.ts: 275ms, render: 173ms)
+○ Compiling / ...

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
     Users,
     DollarSign,
@@ -8,21 +8,15 @@ import {
     TrendingUp,
     Copy,
     Check,
-    ExternalLink,
     ChevronRight,
     Gift,
     CreditCard,
     FileText,
     Download,
     ArrowUpRight,
-    ArrowDownRight,
     Clock,
     CheckCircle,
-    XCircle,
-    AlertCircle,
     Search,
-    Filter,
-    Calendar,
     Wallet,
     Target,
     Award,
@@ -32,43 +26,175 @@ import {
     Mail,
     Video,
     LayoutTemplate,
-    RefreshCw
+    RefreshCw,
+    Loader2,
+    AlertTriangle,
+    X,
+    UserPlus,
+    Settings
 } from 'lucide-react';
+import { useAffiliate } from '@/lib/affiliate/AffiliateContext';
+import { useAuth } from '@/lib/auth/AuthContext';
 import {
-    mockCurrentAffiliate,
-    mockReferrals,
-    mockAffiliateTransactions,
-    mockAffiliatePayouts,
     mockAffiliatePromotions,
     mockAffiliateAssets,
-    mockAffiliateLogs,
     affiliateTiers,
     getTierInfo,
     getNextTierProgress
 } from '@/lib/affiliateData';
+import { PAYMENT_METHODS, PaymentMethodType, PaymentDetails } from '@/types/affiliate';
 
-type TabType = 'overview' | 'referrals' | 'earnings' | 'payouts' | 'assets' | 'logs';
+type TabType = 'overview' | 'referrals' | 'earnings' | 'payouts' | 'assets' | 'logs' | 'settings';
 
 export default function AffiliateDashboard() {
+    const { user } = useAuth();
+    const {
+        affiliate,
+        referrals,
+        transactions,
+        payouts,
+        isLoading,
+        error,
+        isAffiliate,
+        fetchAffiliateData,
+        createAffiliateAccount,
+        requestPayout,
+        copyReferralLink,
+        copyReferralCode
+    } = useAffiliate();
+
     const [activeTab, setActiveTab] = useState<TabType>('overview');
     const [copied, setCopied] = useState(false);
+    const [copiedCode, setCopiedCode] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [logFilter, setLogFilter] = useState<string>('all');
+    const [showPayoutModal, setShowPayoutModal] = useState(false);
+    const [payoutAmount, setPayoutAmount] = useState('');
+    const [payoutLoading, setPayoutLoading] = useState(false);
+    const [payoutSuccess, setPayoutSuccess] = useState(false);
+    const [showOnboardingModal, setShowOnboardingModal] = useState(false);
+    const [onboardingStep, setOnboardingStep] = useState(1);
+    const [selectedRegion, setSelectedRegion] = useState<string>('global');
+    const [onboardingData, setOnboardingData] = useState<{
+        paymentMethod: PaymentMethodType;
+        paymentEmail: string;
+        paymentDetails: PaymentDetails;
+        acceptedTerms: boolean;
+    }>({
+        paymentMethod: 'paypal',
+        paymentEmail: '',
+        paymentDetails: {},
+        acceptedTerms: false
+    });
 
-    const affiliate = mockCurrentAffiliate;
-    const tierInfo = getTierInfo(affiliate.tier);
-    const { nextTier, referralProgress, earningsProgress } = getNextTierProgress(affiliate.tier, affiliate.stats);
-
-    const handleCopyLink = () => {
-        navigator.clipboard.writeText(affiliate.referralLink);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
+    // Use context affiliate or mock data for demo
+    const currentAffiliate = affiliate || {
+        id: 'demo_aff',
+        userId: user?.id || 'demo',
+        referralCode: 'DEMO2025',
+        referralLink: 'https://digitalmeng.com/?ref=DEMO2025',
+        status: 'active' as const,
+        tier: 'gold' as const,
+        createdAt: new Date(),
+        commissionRate: 15,
+        cookieDuration: 90,
+        paymentMethod: 'paypal' as const,
+        paymentEmail: 'demo@example.com',
+        stats: {
+            totalClicks: 4892,
+            uniqueClicks: 3241,
+            totalSignups: 127,
+            paidConversions: 48,
+            conversionRate: 3.9,
+            totalEarnings: 7840.50,
+            pendingEarnings: 1240.00,
+            paidEarnings: 6600.50,
+            lifetimeValue: 163.34,
+            averageOrderValue: 79.99,
+            last30DaysClicks: 892,
+            last30DaysSignups: 24,
+            last30DaysEarnings: 1680.00
+        }
     };
 
-    const handleCopyCode = () => {
-        navigator.clipboard.writeText(affiliate.referralCode);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
+    const tierInfo = getTierInfo(currentAffiliate.tier);
+    const { nextTier, referralProgress, earningsProgress } = getNextTierProgress(
+        currentAffiliate.tier,
+        currentAffiliate.stats
+    );
+
+    const handleCopyLink = async () => {
+        const success = await copyReferralLink();
+        if (success) {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        } else {
+            // Fallback for demo
+            navigator.clipboard.writeText(currentAffiliate.referralLink);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        }
+    };
+
+    const handleCopyCode = async () => {
+        const success = await copyReferralCode();
+        if (success) {
+            setCopiedCode(true);
+            setTimeout(() => setCopiedCode(false), 2000);
+        } else {
+            // Fallback for demo
+            navigator.clipboard.writeText(currentAffiliate.referralCode);
+            setCopiedCode(true);
+            setTimeout(() => setCopiedCode(false), 2000);
+        }
+    };
+
+    const handleRequestPayout = async () => {
+        const amount = parseFloat(payoutAmount);
+        if (isNaN(amount) || amount < 50) {
+            alert('Minimum payout amount is $50');
+            return;
+        }
+
+        if (amount > currentAffiliate.stats.pendingEarnings) {
+            alert('Insufficient pending balance');
+            return;
+        }
+
+        setPayoutLoading(true);
+        const success = await requestPayout(amount);
+        setPayoutLoading(false);
+
+        if (success) {
+            setPayoutSuccess(true);
+            setTimeout(() => {
+                setShowPayoutModal(false);
+                setPayoutSuccess(false);
+                setPayoutAmount('');
+            }, 2000);
+        }
+    };
+
+    const handleCreateAffiliate = async () => {
+        if (!onboardingData.acceptedTerms) {
+            alert('Please accept the terms and conditions');
+            return;
+        }
+
+        if (!onboardingData.paymentEmail) {
+            alert('Please enter your payment email');
+            return;
+        }
+
+        const success = await createAffiliateAccount({
+            paymentMethod: onboardingData.paymentMethod,
+            paymentEmail: onboardingData.paymentEmail
+        });
+
+        if (success) {
+            setShowOnboardingModal(false);
+            fetchAffiliateData();
+        }
     };
 
     const formatCurrency = (amount: number) => {
@@ -176,10 +302,36 @@ export default function AffiliateDashboard() {
         }
     };
 
-    const filteredLogs = mockAffiliateLogs.filter(log => {
+    // Mock logs for demo
+    const mockLogs = [
+        { id: '1', action: 'click', details: '15 new clicks from referral link', createdAt: new Date() },
+        { id: '2', action: 'signup', details: 'New user signed up: john@example.com', createdAt: new Date(Date.now() - 86400000) },
+        { id: '3', action: 'commission_earned', details: 'Commission earned: $24.00', createdAt: new Date(Date.now() - 172800000) },
+    ];
+
+    const filteredLogs = mockLogs.filter(log => {
         if (logFilter === 'all') return true;
         return log.action === logFilter;
     });
+
+    // Use context referrals or mock data
+    const displayReferrals = referrals.length > 0 ? referrals : [
+        { id: 'ref_1', referredUserEmail: 'john@example.com', referredUserName: 'John D.', status: 'active', plan: 'pro', signupDate: new Date(), totalSpent: 79.99, commissionEarned: 24.00, isRecurring: true },
+        { id: 'ref_2', referredUserEmail: 'sarah@example.com', referredUserName: 'Sarah M.', status: 'active', plan: 'enterprise', signupDate: new Date(Date.now() - 86400000), totalSpent: 299.99, commissionEarned: 90.00, isRecurring: true },
+    ];
+
+    // Use context transactions or mock data
+    const displayTransactions = transactions.length > 0 ? transactions : [
+        { id: 'txn_1', type: 'commission', amount: 90.00, status: 'approved', description: 'Commission for Enterprise plan', createdAt: new Date() },
+        { id: 'txn_2', type: 'commission', amount: 24.00, status: 'approved', description: 'Commission for Pro plan', createdAt: new Date(Date.now() - 86400000) },
+        { id: 'txn_3', type: 'bonus', amount: 100.00, status: 'approved', description: 'Holiday Promotion Bonus', createdAt: new Date(Date.now() - 172800000) },
+    ];
+
+    // Use context payouts or mock data
+    const displayPayouts = payouts.length > 0 ? payouts : [
+        { id: 'pay_1', amount: 500.00, status: 'completed', paymentMethod: 'paypal', paymentReference: 'PP-12345678', requestedAt: new Date(Date.now() - 604800000), processedAt: new Date(Date.now() - 518400000) },
+        { id: 'pay_2', amount: 750.00, status: 'completed', paymentMethod: 'paypal', paymentReference: 'PP-87654321', requestedAt: new Date(Date.now() - 2592000000), processedAt: new Date(Date.now() - 2505600000) },
+    ];
 
     const tabs = [
         { id: 'overview', label: 'Overview', icon: TrendingUp },
@@ -187,12 +339,33 @@ export default function AffiliateDashboard() {
         { id: 'earnings', label: 'Earnings', icon: DollarSign },
         { id: 'payouts', label: 'Payouts', icon: Wallet },
         { id: 'assets', label: 'Marketing Assets', icon: ImageIcon },
-        { id: 'logs', label: 'Activity Log', icon: FileText }
+        { id: 'logs', label: 'Activity Log', icon: FileText },
+        { id: 'settings', label: 'Payment Settings', icon: Settings }
     ];
+
+    // Loading state
+    if (isLoading) {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-violet-50/30 flex items-center justify-center">
+                <div className="flex flex-col items-center gap-4">
+                    <Loader2 className="w-12 h-12 text-violet-600 animate-spin" />
+                    <p className="text-slate-500">Loading affiliate dashboard...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-violet-50/30 p-6">
             <div className="max-w-7xl mx-auto space-y-6">
+                {/* Error Banner */}
+                {error && (
+                    <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-3">
+                        <AlertTriangle className="w-5 h-5 text-red-600" />
+                        <p className="text-red-700">{error}</p>
+                    </div>
+                )}
+
                 {/* Header */}
                 <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                     <div>
@@ -208,7 +381,11 @@ export default function AffiliateDashboard() {
                             <span className="text-lg">{tierInfo?.icon}</span>
                             <span className="font-semibold">{tierInfo?.displayName}</span>
                         </div>
-                        <button className="px-4 py-2 bg-violet-600 text-white rounded-xl font-semibold hover:bg-violet-500 transition-colors flex items-center gap-2">
+                        <button
+                            onClick={() => setShowPayoutModal(true)}
+                            disabled={currentAffiliate.stats.pendingEarnings < 50}
+                            className="px-4 py-2 bg-violet-600 text-white rounded-xl font-semibold hover:bg-violet-500 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
                             <Gift className="w-4 h-4" />
                             Request Payout
                         </button>
@@ -220,12 +397,12 @@ export default function AffiliateDashboard() {
                     <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                         <div>
                             <h2 className="text-lg font-semibold opacity-90">Your Referral Link</h2>
-                            <p className="text-white/70 text-sm mt-1">Share this link to earn {affiliate.commissionRate}% commission on every sale</p>
+                            <p className="text-white/70 text-sm mt-1">Share this link to earn {currentAffiliate.commissionRate}% commission on every sale</p>
                         </div>
                         <div className="flex items-center gap-3">
                             <div className="bg-white/10 backdrop-blur-sm rounded-xl px-4 py-3 flex items-center gap-3 border border-white/20">
                                 <Link2 className="w-5 h-5 text-white/70" />
-                                <span className="font-mono text-sm">{affiliate.referralLink}</span>
+                                <span className="font-mono text-sm">{currentAffiliate.referralLink}</span>
                             </div>
                             <button
                                 onClick={handleCopyLink}
@@ -239,18 +416,18 @@ export default function AffiliateDashboard() {
                     <div className="mt-4 pt-4 border-t border-white/20 flex flex-wrap items-center gap-6">
                         <div className="flex items-center gap-2">
                             <span className="text-white/70 text-sm">Referral Code:</span>
-                            <code className="bg-white/10 px-3 py-1 rounded-lg font-mono text-sm">{affiliate.referralCode}</code>
+                            <code className="bg-white/10 px-3 py-1 rounded-lg font-mono text-sm">{currentAffiliate.referralCode}</code>
                             <button onClick={handleCopyCode} className="text-white/70 hover:text-white">
-                                <Copy className="w-4 h-4" />
+                                {copiedCode ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                             </button>
                         </div>
                         <div className="flex items-center gap-2">
                             <span className="text-white/70 text-sm">Cookie Duration:</span>
-                            <span className="font-semibold">{affiliate.cookieDuration} days</span>
+                            <span className="font-semibold">{currentAffiliate.cookieDuration} days</span>
                         </div>
                         <div className="flex items-center gap-2">
                             <span className="text-white/70 text-sm">Commission Rate:</span>
-                            <span className="font-semibold">{affiliate.commissionRate}%</span>
+                            <span className="font-semibold">{currentAffiliate.commissionRate}%</span>
                         </div>
                     </div>
                 </div>
@@ -263,8 +440,8 @@ export default function AffiliateDashboard() {
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id as TabType)}
                                 className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium transition-all ${activeTab === tab.id
-                                        ? 'bg-violet-600 text-white'
-                                        : 'text-slate-600 hover:bg-slate-100'
+                                    ? 'bg-violet-600 text-white'
+                                    : 'text-slate-600 hover:bg-slate-100'
                                     }`}
                             >
                                 <tab.icon className="w-4 h-4" />
@@ -289,7 +466,7 @@ export default function AffiliateDashboard() {
                                         +12.5%
                                     </span>
                                 </div>
-                                <div className="text-2xl font-bold text-slate-800">{affiliate.stats.totalClicks.toLocaleString()}</div>
+                                <div className="text-2xl font-bold text-slate-800">{currentAffiliate.stats.totalClicks.toLocaleString()}</div>
                                 <div className="text-slate-500 text-sm">Total Clicks</div>
                             </div>
 
@@ -303,7 +480,7 @@ export default function AffiliateDashboard() {
                                         +8.3%
                                     </span>
                                 </div>
-                                <div className="text-2xl font-bold text-slate-800">{affiliate.stats.totalSignups}</div>
+                                <div className="text-2xl font-bold text-slate-800">{currentAffiliate.stats.totalSignups}</div>
                                 <div className="text-slate-500 text-sm">Total Signups</div>
                             </div>
 
@@ -317,7 +494,7 @@ export default function AffiliateDashboard() {
                                         +23.1%
                                     </span>
                                 </div>
-                                <div className="text-2xl font-bold text-slate-800">{formatCurrency(affiliate.stats.totalEarnings)}</div>
+                                <div className="text-2xl font-bold text-slate-800">{formatCurrency(currentAffiliate.stats.totalEarnings)}</div>
                                 <div className="text-slate-500 text-sm">Total Earnings</div>
                             </div>
 
@@ -327,7 +504,7 @@ export default function AffiliateDashboard() {
                                         <Target className="w-5 h-5 text-amber-600" />
                                     </div>
                                 </div>
-                                <div className="text-2xl font-bold text-slate-800">{affiliate.stats.conversionRate}%</div>
+                                <div className="text-2xl font-bold text-slate-800">{currentAffiliate.stats.conversionRate}%</div>
                                 <div className="text-slate-500 text-sm">Conversion Rate</div>
                             </div>
                         </div>
@@ -343,7 +520,7 @@ export default function AffiliateDashboard() {
                                     </div>
                                     <div>
                                         <div className="text-xl font-bold text-slate-800">{tierInfo?.displayName}</div>
-                                        <div className="text-slate-500 text-sm">{affiliate.commissionRate}% commission rate</div>
+                                        <div className="text-slate-500 text-sm">{currentAffiliate.commissionRate}% commission rate</div>
                                     </div>
                                 </div>
 
@@ -355,7 +532,7 @@ export default function AffiliateDashboard() {
                                         </div>
                                         <div>
                                             <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
-                                                <span>Referrals: {affiliate.stats.paidConversions}/{nextTier.minReferrals}</span>
+                                                <span>Referrals: {currentAffiliate.stats.paidConversions}/{nextTier.minReferrals}</span>
                                                 <span>{Math.round(referralProgress)}%</span>
                                             </div>
                                             <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
@@ -364,7 +541,7 @@ export default function AffiliateDashboard() {
                                         </div>
                                         <div>
                                             <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
-                                                <span>Earnings: {formatCurrency(affiliate.stats.totalEarnings)}/{formatCurrency(nextTier.minEarnings)}</span>
+                                                <span>Earnings: {formatCurrency(currentAffiliate.stats.totalEarnings)}/{formatCurrency(nextTier.minEarnings)}</span>
                                                 <span>{Math.round(earningsProgress)}%</span>
                                             </div>
                                             <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
@@ -425,7 +602,7 @@ export default function AffiliateDashboard() {
                                 </button>
                             </div>
                             <div className="space-y-3">
-                                {mockAffiliateLogs.slice(0, 5).map(log => (
+                                {filteredLogs.slice(0, 5).map(log => (
                                     <div key={log.id} className="flex items-center gap-4 p-3 rounded-xl hover:bg-slate-50 transition-colors">
                                         <div className="w-9 h-9 bg-slate-100 rounded-lg flex items-center justify-center text-slate-600">
                                             {getLogIcon(log.action)}
@@ -474,7 +651,7 @@ export default function AffiliateDashboard() {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
-                                    {mockReferrals.map(referral => (
+                                    {displayReferrals.map(referral => (
                                         <tr key={referral.id} className="hover:bg-slate-50 transition-colors">
                                             <td className="px-6 py-4">
                                                 <div>
@@ -527,7 +704,7 @@ export default function AffiliateDashboard() {
                                     </div>
                                     <span className="text-slate-600 text-sm">Total Earnings</span>
                                 </div>
-                                <div className="text-3xl font-bold text-slate-800">{formatCurrency(affiliate.stats.totalEarnings)}</div>
+                                <div className="text-3xl font-bold text-slate-800">{formatCurrency(currentAffiliate.stats.totalEarnings)}</div>
                             </div>
                             <div className="bg-white rounded-2xl border border-slate-200 p-5">
                                 <div className="flex items-center gap-3 mb-2">
@@ -536,7 +713,7 @@ export default function AffiliateDashboard() {
                                     </div>
                                     <span className="text-slate-600 text-sm">Pending</span>
                                 </div>
-                                <div className="text-3xl font-bold text-amber-600">{formatCurrency(affiliate.stats.pendingEarnings)}</div>
+                                <div className="text-3xl font-bold text-amber-600">{formatCurrency(currentAffiliate.stats.pendingEarnings)}</div>
                             </div>
                             <div className="bg-white rounded-2xl border border-slate-200 p-5">
                                 <div className="flex items-center gap-3 mb-2">
@@ -545,7 +722,7 @@ export default function AffiliateDashboard() {
                                     </div>
                                     <span className="text-slate-600 text-sm">Paid Out</span>
                                 </div>
-                                <div className="text-3xl font-bold text-blue-600">{formatCurrency(affiliate.stats.paidEarnings)}</div>
+                                <div className="text-3xl font-bold text-blue-600">{formatCurrency(currentAffiliate.stats.paidEarnings)}</div>
                             </div>
                         </div>
 
@@ -566,7 +743,7 @@ export default function AffiliateDashboard() {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-100">
-                                        {mockAffiliateTransactions.map(txn => (
+                                        {displayTransactions.map(txn => (
                                             <tr key={txn.id} className="hover:bg-slate-50 transition-colors">
                                                 <td className="px-6 py-4">
                                                     <div className="flex items-center gap-2">
@@ -608,18 +785,19 @@ export default function AffiliateDashboard() {
                             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                                 <div>
                                     <h3 className="text-lg font-semibold opacity-90">Available for Payout</h3>
-                                    <div className="text-4xl font-bold mt-2">{formatCurrency(affiliate.stats.pendingEarnings)}</div>
+                                    <div className="text-4xl font-bold mt-2">{formatCurrency(currentAffiliate.stats.pendingEarnings)}</div>
                                     <p className="text-white/70 text-sm mt-1">Minimum payout: $50.00</p>
                                 </div>
                                 <div className="flex flex-col gap-2">
                                     <button
-                                        disabled={affiliate.stats.pendingEarnings < 50}
+                                        onClick={() => setShowPayoutModal(true)}
+                                        disabled={currentAffiliate.stats.pendingEarnings < 50}
                                         className="px-6 py-3 bg-white text-violet-600 rounded-xl font-semibold hover:bg-white/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                         Request Payout
                                     </button>
                                     <span className="text-xs text-white/70 text-center">
-                                        Payment method: {affiliate.paymentMethod.replace('_', ' ')}
+                                        Payment method: {currentAffiliate.paymentMethod?.replace('_', ' ')}
                                     </span>
                                 </div>
                             </div>
@@ -644,11 +822,11 @@ export default function AffiliateDashboard() {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-100">
-                                        {mockAffiliatePayouts.map(payout => (
+                                        {displayPayouts.map(payout => (
                                             <tr key={payout.id} className="hover:bg-slate-50 transition-colors">
                                                 <td className="px-6 py-4 font-mono text-sm text-slate-600">{payout.id}</td>
                                                 <td className="px-6 py-4 font-semibold text-slate-800">{formatCurrency(payout.amount)}</td>
-                                                <td className="px-6 py-4 text-slate-600 capitalize">{payout.paymentMethod.replace('_', ' ')}</td>
+                                                <td className="px-6 py-4 text-slate-600 capitalize">{payout.paymentMethod?.replace('_', ' ')}</td>
                                                 <td className="px-6 py-4">
                                                     <span className={`px-2.5 py-1 rounded-full text-xs font-medium border capitalize ${getStatusColor(payout.status)}`}>
                                                         {payout.status}
@@ -730,10 +908,10 @@ export default function AffiliateDashboard() {
                             {filteredLogs.map(log => (
                                 <div key={log.id} className="flex items-start gap-4 p-4 hover:bg-slate-50 transition-colors">
                                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${log.action.includes('commission') || log.action.includes('payout')
-                                            ? 'bg-emerald-100 text-emerald-600'
-                                            : log.action.includes('tier')
-                                                ? 'bg-violet-100 text-violet-600'
-                                                : 'bg-slate-100 text-slate-600'
+                                        ? 'bg-emerald-100 text-emerald-600'
+                                        : log.action.includes('tier')
+                                            ? 'bg-violet-100 text-violet-600'
+                                            : 'bg-slate-100 text-slate-600'
                                         }`}>
                                         {getLogIcon(log.action)}
                                     </div>
@@ -751,7 +929,983 @@ export default function AffiliateDashboard() {
                         </div>
                     </div>
                 )}
+
+                {activeTab === 'settings' && (
+                    <div className="space-y-6">
+                        {/* Current Payment Method */}
+                        <div className="bg-white rounded-2xl border border-slate-200 p-6">
+                            <h3 className="text-lg font-semibold text-slate-800 mb-4">Current Payment Method</h3>
+                            <div className="p-4 bg-gradient-to-r from-violet-50 to-fuchsia-50 rounded-xl border border-violet-100">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-14 h-14 bg-white rounded-xl flex items-center justify-center shadow-sm">
+                                        <span className="text-3xl">
+                                            {PAYMENT_METHODS.find(pm => pm.id === currentAffiliate.paymentMethod)?.icon || '💳'}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        <div className="font-semibold text-slate-800 text-lg">
+                                            {PAYMENT_METHODS.find(pm => pm.id === currentAffiliate.paymentMethod)?.name || currentAffiliate.paymentMethod?.replace('_', ' ')}
+                                        </div>
+                                        {currentAffiliate.paymentEmail && (
+                                            <div className="text-slate-600">{currentAffiliate.paymentEmail}</div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Update Payment Method */}
+                        <div className="bg-white rounded-2xl border border-slate-200 p-6">
+                            <h3 className="text-lg font-semibold text-slate-800 mb-4">Update Payment Method</h3>
+
+                            {/* Region Selector */}
+                            <div className="mb-4">
+                                <label className="block text-sm font-semibold text-slate-700 mb-2">Select Region</label>
+                                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+                                    {[
+                                        { id: 'global', label: '🌍 Global' },
+                                        { id: 'india', label: '🇮🇳 India' },
+                                        { id: 'southeast_asia', label: '🌏 SE Asia' },
+                                        { id: 'china', label: '🇨🇳 China' },
+                                        { id: 'europe', label: '🇪🇺 Europe' },
+                                        { id: 'africa', label: '🌍 Africa' },
+                                        { id: 'latin_america', label: '🌎 LatAm' },
+                                    ].map(region => (
+                                        <button
+                                            key={region.id}
+                                            type="button"
+                                            onClick={() => setSelectedRegion(region.id)}
+                                            className={`p-2 rounded-lg border-2 text-center text-sm transition-all ${selectedRegion === region.id
+                                                    ? 'border-violet-500 bg-violet-50 font-medium'
+                                                    : 'border-slate-200 hover:border-violet-300'
+                                                }`}
+                                        >
+                                            {region.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Payment Methods Grid */}
+                            <div className="mb-4">
+                                <label className="block text-sm font-semibold text-slate-700 mb-2">Available Payment Methods</label>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-64 overflow-y-auto p-1">
+                                    {PAYMENT_METHODS
+                                        .filter(pm => pm.region === selectedRegion || pm.region === 'global')
+                                        .map(method => (
+                                            <button
+                                                key={method.id}
+                                                type="button"
+                                                onClick={() => setOnboardingData({
+                                                    ...onboardingData,
+                                                    paymentMethod: method.id,
+                                                    paymentEmail: '',
+                                                    paymentDetails: {}
+                                                })}
+                                                className={`p-4 rounded-xl border-2 text-left transition-all flex items-center gap-3 ${onboardingData.paymentMethod === method.id
+                                                        ? 'border-violet-500 bg-violet-50 shadow-md'
+                                                        : 'border-slate-200 hover:border-violet-300 hover:bg-slate-50'
+                                                    }`}
+                                            >
+                                                <span className="text-2xl">{method.icon}</span>
+                                                <div>
+                                                    <div className="font-medium text-slate-800">{method.name}</div>
+                                                    <div className="text-xs text-slate-500">{method.description}</div>
+                                                </div>
+                                            </button>
+                                        ))}
+                                </div>
+                            </div>
+
+                            {/* Selected Payment Method Info */}
+                            <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 mb-4">
+                                <div className="flex items-center gap-3 mb-3">
+                                    <span className="text-2xl">
+                                        {PAYMENT_METHODS.find(pm => pm.id === onboardingData.paymentMethod)?.icon}
+                                    </span>
+                                    <div>
+                                        <div className="font-semibold text-slate-800">
+                                            {PAYMENT_METHODS.find(pm => pm.id === onboardingData.paymentMethod)?.name}
+                                        </div>
+                                        <div className="text-xs text-slate-500">
+                                            {PAYMENT_METHODS.find(pm => pm.id === onboardingData.paymentMethod)?.description}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Dynamic Form Fields */}
+                                <div className="space-y-3">
+                                    {/* Email-based methods */}
+                                    {['paypal', 'stripe', 'flutterwave', 'razorpay'].includes(onboardingData.paymentMethod) && (
+                                        <input
+                                            type="email"
+                                            value={onboardingData.paymentEmail}
+                                            onChange={(e) => setOnboardingData({ ...onboardingData, paymentEmail: e.target.value })}
+                                            placeholder="Payment Email"
+                                            className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white"
+                                        />
+                                    )}
+
+                                    {/* India - UPI */}
+                                    {['gpay', 'phonepe', 'paytm', 'upi'].includes(onboardingData.paymentMethod) && (
+                                        <>
+                                            <input
+                                                type="text"
+                                                value={onboardingData.paymentDetails.upiId || ''}
+                                                onChange={(e) => setOnboardingData({
+                                                    ...onboardingData,
+                                                    paymentDetails: { ...onboardingData.paymentDetails, upiId: e.target.value }
+                                                })}
+                                                placeholder="UPI ID (e.g., name@upi)"
+                                                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white"
+                                            />
+                                            {['gpay', 'phonepe', 'paytm'].includes(onboardingData.paymentMethod) && (
+                                                <input
+                                                    type="tel"
+                                                    value={onboardingData.paymentDetails.phoneNumber || ''}
+                                                    onChange={(e) => setOnboardingData({
+                                                        ...onboardingData,
+                                                        paymentDetails: { ...onboardingData.paymentDetails, phoneNumber: e.target.value }
+                                                    })}
+                                                    placeholder="Phone Number"
+                                                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white"
+                                                />
+                                            )}
+                                        </>
+                                    )}
+
+                                    {/* Bank Transfer */}
+                                    {onboardingData.paymentMethod === 'bank_transfer' && (
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <input
+                                                type="text"
+                                                value={onboardingData.paymentDetails.accountHolderName || ''}
+                                                onChange={(e) => setOnboardingData({
+                                                    ...onboardingData,
+                                                    paymentDetails: { ...onboardingData.paymentDetails, accountHolderName: e.target.value }
+                                                })}
+                                                placeholder="Account Holder Name"
+                                                className="col-span-2 px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white"
+                                            />
+                                            <input
+                                                type="text"
+                                                value={onboardingData.paymentDetails.bankName || ''}
+                                                onChange={(e) => setOnboardingData({
+                                                    ...onboardingData,
+                                                    paymentDetails: { ...onboardingData.paymentDetails, bankName: e.target.value }
+                                                })}
+                                                placeholder="Bank Name"
+                                                className="px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white"
+                                            />
+                                            <input
+                                                type="text"
+                                                value={onboardingData.paymentDetails.accountNumber || ''}
+                                                onChange={(e) => setOnboardingData({
+                                                    ...onboardingData,
+                                                    paymentDetails: { ...onboardingData.paymentDetails, accountNumber: e.target.value }
+                                                })}
+                                                placeholder="Account Number"
+                                                className="px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white"
+                                            />
+                                            <input
+                                                type="text"
+                                                value={onboardingData.paymentDetails.swiftCode || ''}
+                                                onChange={(e) => setOnboardingData({
+                                                    ...onboardingData,
+                                                    paymentDetails: { ...onboardingData.paymentDetails, swiftCode: e.target.value }
+                                                })}
+                                                placeholder="SWIFT Code"
+                                                className="col-span-2 px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white"
+                                            />
+                                        </div>
+                                    )}
+
+                                    {/* Crypto */}
+                                    {onboardingData.paymentMethod === 'crypto' && (
+                                        <>
+                                            <select
+                                                value={onboardingData.paymentDetails.cryptoNetwork || ''}
+                                                onChange={(e) => setOnboardingData({
+                                                    ...onboardingData,
+                                                    paymentDetails: {
+                                                        ...onboardingData.paymentDetails,
+                                                        cryptoNetwork: e.target.value as PaymentDetails['cryptoNetwork']
+                                                    }
+                                                })}
+                                                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white"
+                                            >
+                                                <option value="">Select Network</option>
+                                                <option value="bitcoin">Bitcoin (BTC)</option>
+                                                <option value="ethereum">Ethereum (ETH)</option>
+                                                <option value="usdt_trc20">USDT (TRC20)</option>
+                                                <option value="usdt_erc20">USDT (ERC20)</option>
+                                                <option value="usdc">USDC</option>
+                                                <option value="solana">Solana</option>
+                                                <option value="polygon">Polygon</option>
+                                            </select>
+                                            <input
+                                                type="text"
+                                                value={onboardingData.paymentDetails.cryptoWallet || ''}
+                                                onChange={(e) => setOnboardingData({
+                                                    ...onboardingData,
+                                                    paymentDetails: { ...onboardingData.paymentDetails, cryptoWallet: e.target.value }
+                                                })}
+                                                placeholder="Wallet Address"
+                                                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white font-mono text-sm"
+                                            />
+                                        </>
+                                    )}
+
+                                    {/* Wise, Skrill, Payoneer */}
+                                    {onboardingData.paymentMethod === 'wise' && (
+                                        <input
+                                            type="email"
+                                            value={onboardingData.paymentDetails.wiseEmail || ''}
+                                            onChange={(e) => setOnboardingData({
+                                                ...onboardingData,
+                                                paymentDetails: { ...onboardingData.paymentDetails, wiseEmail: e.target.value }
+                                            })}
+                                            placeholder="Wise Email"
+                                            className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white"
+                                        />
+                                    )}
+                                    {onboardingData.paymentMethod === 'skrill' && (
+                                        <input
+                                            type="email"
+                                            value={onboardingData.paymentDetails.skrillEmail || ''}
+                                            onChange={(e) => setOnboardingData({
+                                                ...onboardingData,
+                                                paymentDetails: { ...onboardingData.paymentDetails, skrillEmail: e.target.value }
+                                            })}
+                                            placeholder="Skrill Email"
+                                            className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white"
+                                        />
+                                    )}
+                                    {onboardingData.paymentMethod === 'payoneer' && (
+                                        <input
+                                            type="email"
+                                            value={onboardingData.paymentDetails.payoneerEmail || ''}
+                                            onChange={(e) => setOnboardingData({
+                                                ...onboardingData,
+                                                paymentDetails: { ...onboardingData.paymentDetails, payoneerEmail: e.target.value }
+                                            })}
+                                            placeholder="Payoneer Email"
+                                            className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white"
+                                        />
+                                    )}
+
+                                    {/* SEPA */}
+                                    {onboardingData.paymentMethod === 'sepa' && (
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <input
+                                                type="text"
+                                                value={onboardingData.paymentDetails.accountHolderName || ''}
+                                                onChange={(e) => setOnboardingData({
+                                                    ...onboardingData,
+                                                    paymentDetails: { ...onboardingData.paymentDetails, accountHolderName: e.target.value }
+                                                })}
+                                                placeholder="Account Holder Name"
+                                                className="col-span-2 px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white"
+                                            />
+                                            <input
+                                                type="text"
+                                                value={onboardingData.paymentDetails.iban || ''}
+                                                onChange={(e) => setOnboardingData({
+                                                    ...onboardingData,
+                                                    paymentDetails: { ...onboardingData.paymentDetails, iban: e.target.value }
+                                                })}
+                                                placeholder="IBAN"
+                                                className="col-span-2 px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white"
+                                            />
+                                        </div>
+                                    )}
+
+                                    {/* PIX (Brazil) */}
+                                    {onboardingData.paymentMethod === 'pix' && (
+                                        <input
+                                            type="text"
+                                            value={onboardingData.paymentDetails.pixKey || ''}
+                                            onChange={(e) => setOnboardingData({
+                                                ...onboardingData,
+                                                paymentDetails: { ...onboardingData.paymentDetails, pixKey: e.target.value }
+                                            })}
+                                            placeholder="PIX Key (CPF, Email, Phone, or Random Key)"
+                                            className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white"
+                                        />
+                                    )}
+
+                                    {/* M-Pesa */}
+                                    {onboardingData.paymentMethod === 'mpesa' && (
+                                        <input
+                                            type="tel"
+                                            value={onboardingData.paymentDetails.mpesaPhone || ''}
+                                            onChange={(e) => setOnboardingData({
+                                                ...onboardingData,
+                                                paymentDetails: { ...onboardingData.paymentDetails, mpesaPhone: e.target.value }
+                                            })}
+                                            placeholder="M-Pesa Phone Number"
+                                            className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white"
+                                        />
+                                    )}
+
+                                    {/* SE Asia Wallets */}
+                                    {onboardingData.paymentMethod === 'grabpay' && (
+                                        <input type="tel" value={onboardingData.paymentDetails.grabpayPhone || ''} onChange={(e) => setOnboardingData({ ...onboardingData, paymentDetails: { ...onboardingData.paymentDetails, grabpayPhone: e.target.value } })} placeholder="GrabPay Phone Number" className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white" />
+                                    )}
+                                    {onboardingData.paymentMethod === 'gcash' && (
+                                        <input type="tel" value={onboardingData.paymentDetails.gcashPhone || ''} onChange={(e) => setOnboardingData({ ...onboardingData, paymentDetails: { ...onboardingData.paymentDetails, gcashPhone: e.target.value } })} placeholder="GCash Phone Number" className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white" />
+                                    )}
+                                    {onboardingData.paymentMethod === 'maya' && (
+                                        <input type="tel" value={onboardingData.paymentDetails.mayaPhone || ''} onChange={(e) => setOnboardingData({ ...onboardingData, paymentDetails: { ...onboardingData.paymentDetails, mayaPhone: e.target.value } })} placeholder="Maya Phone Number" className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white" />
+                                    )}
+                                    {onboardingData.paymentMethod === 'dana' && (
+                                        <input type="tel" value={onboardingData.paymentDetails.danaPhone || ''} onChange={(e) => setOnboardingData({ ...onboardingData, paymentDetails: { ...onboardingData.paymentDetails, danaPhone: e.target.value } })} placeholder="Dana Phone Number" className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white" />
+                                    )}
+                                    {onboardingData.paymentMethod === 'ovo' && (
+                                        <input type="tel" value={onboardingData.paymentDetails.ovoPhone || ''} onChange={(e) => setOnboardingData({ ...onboardingData, paymentDetails: { ...onboardingData.paymentDetails, ovoPhone: e.target.value } })} placeholder="OVO Phone Number" className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white" />
+                                    )}
+                                    {onboardingData.paymentMethod === 'gopay' && (
+                                        <input type="tel" value={onboardingData.paymentDetails.gopayPhone || ''} onChange={(e) => setOnboardingData({ ...onboardingData, paymentDetails: { ...onboardingData.paymentDetails, gopayPhone: e.target.value } })} placeholder="GoPay Phone Number" className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white" />
+                                    )}
+
+                                    {/* China */}
+                                    {onboardingData.paymentMethod === 'alipay' && (
+                                        <input type="text" value={onboardingData.paymentDetails.alipayId || ''} onChange={(e) => setOnboardingData({ ...onboardingData, paymentDetails: { ...onboardingData.paymentDetails, alipayId: e.target.value } })} placeholder="Alipay ID / Phone" className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white" />
+                                    )}
+                                    {onboardingData.paymentMethod === 'wechat_pay' && (
+                                        <input type="text" value={onboardingData.paymentDetails.wechatId || ''} onChange={(e) => setOnboardingData({ ...onboardingData, paymentDetails: { ...onboardingData.paymentDetails, wechatId: e.target.value } })} placeholder="WeChat ID" className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white" />
+                                    )}
+
+                                    {/* MercadoPago */}
+                                    {onboardingData.paymentMethod === 'mercadopago' && (
+                                        <input type="email" value={onboardingData.paymentDetails.mercadopagoEmail || ''} onChange={(e) => setOnboardingData({ ...onboardingData, paymentDetails: { ...onboardingData.paymentDetails, mercadopagoEmail: e.target.value } })} placeholder="MercadoPago Email" className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white" />
+                                    )}
+
+                                    {/* Revolut */}
+                                    {onboardingData.paymentMethod === 'revolut' && (
+                                        <>
+                                            <input type="email" value={onboardingData.paymentEmail} onChange={(e) => setOnboardingData({ ...onboardingData, paymentEmail: e.target.value })} placeholder="Revolut Email" className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white" />
+                                            <input type="tel" value={onboardingData.paymentDetails.phoneNumber || ''} onChange={(e) => setOnboardingData({ ...onboardingData, paymentDetails: { ...onboardingData.paymentDetails, phoneNumber: e.target.value } })} placeholder="Revolut Phone" className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white" />
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+
+                            <button
+                                onClick={() => {
+                                    // In a real app, this would save to the backend
+                                    alert('Payment settings updated! (Demo mode)');
+                                }}
+                                className="w-full px-6 py-4 bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white rounded-xl font-semibold hover:from-violet-500 hover:to-fuchsia-500 transition-all shadow-lg shadow-violet-500/25 flex items-center justify-center gap-2"
+                            >
+                                <CheckCircle className="w-5 h-5" />
+                                Save Payment Settings
+                            </button>
+                        </div>
+
+                        {/* Payment Method Info Cards */}
+                        <div className="bg-white rounded-2xl border border-slate-200 p-6">
+                            <h3 className="text-lg font-semibold text-slate-800 mb-4">Supported Payment Methods</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {[
+                                    { region: 'global', title: '🌍 Global', methods: 'PayPal, Stripe, Bank Transfer, Wise, Skrill, Payoneer, Crypto' },
+                                    { region: 'india', title: '🇮🇳 India', methods: 'Google Pay, PhonePe, Paytm, UPI, Razorpay' },
+                                    { region: 'southeast_asia', title: '🌏 Southeast Asia', methods: 'GrabPay, GCash, Maya, Dana, OVO, GoPay' },
+                                    { region: 'china', title: '🇨🇳 China', methods: 'Alipay, WeChat Pay' },
+                                    { region: 'europe', title: '🇪🇺 Europe', methods: 'SEPA Transfer, Revolut' },
+                                    { region: 'africa', title: '🌍 Africa', methods: 'M-Pesa, Flutterwave' },
+                                    { region: 'latin_america', title: '🌎 Latin America', methods: 'PIX (Brazil), MercadoPago' },
+                                ].map(info => (
+                                    <div key={info.region} className="p-4 rounded-xl bg-slate-50 border border-slate-100">
+                                        <h4 className="font-semibold text-slate-800 mb-1">{info.title}</h4>
+                                        <p className="text-sm text-slate-600">{info.methods}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
+
+            {/* Payout Request Modal */}
+            {showPayoutModal && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl w-full max-w-md p-6">
+                        <div className="flex items-center justify-between mb-6">
+                            <h3 className="text-xl font-bold text-slate-800">Request Payout</h3>
+                            <button onClick={() => setShowPayoutModal(false)} className="text-slate-400 hover:text-slate-600">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        {payoutSuccess ? (
+                            <div className="text-center py-8">
+                                <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <CheckCircle className="w-8 h-8 text-emerald-600" />
+                                </div>
+                                <h4 className="text-lg font-semibold text-slate-800 mb-2">Payout Requested!</h4>
+                                <p className="text-slate-600">Your payout request has been submitted. Processing typically takes 3-5 business days.</p>
+                            </div>
+                        ) : (
+                            <>
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-1">Available Balance</label>
+                                        <div className="text-2xl font-bold text-emerald-600">{formatCurrency(currentAffiliate.stats.pendingEarnings)}</div>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-1">Payout Amount</label>
+                                        <div className="relative">
+                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">$</span>
+                                            <input
+                                                type="number"
+                                                value={payoutAmount}
+                                                onChange={(e) => setPayoutAmount(e.target.value)}
+                                                placeholder="50.00"
+                                                min="50"
+                                                max={currentAffiliate.stats.pendingEarnings}
+                                                className="w-full pl-8 pr-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                            />
+                                        </div>
+                                        <p className="text-xs text-slate-500 mt-1">Minimum: $50.00</p>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-1">Payment Method</label>
+                                        <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                                            <span className="capitalize">{currentAffiliate.paymentMethod?.replace('_', ' ')}</span>
+                                            {currentAffiliate.paymentEmail && (
+                                                <span className="text-slate-500 ml-2">({currentAffiliate.paymentEmail})</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="flex gap-3 mt-6">
+                                    <button
+                                        onClick={() => setShowPayoutModal(false)}
+                                        className="flex-1 px-4 py-3 border border-slate-200 rounded-xl font-medium text-slate-700 hover:bg-slate-50"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={handleRequestPayout}
+                                        disabled={payoutLoading || !payoutAmount || parseFloat(payoutAmount) < 50}
+                                        className="flex-1 px-4 py-3 bg-violet-600 text-white rounded-xl font-semibold hover:bg-violet-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                    >
+                                        {payoutLoading ? (
+                                            <>
+                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                                Processing...
+                                            </>
+                                        ) : (
+                                            'Request Payout'
+                                        )}
+                                    </button>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* Affiliate Onboarding Modal */}
+            {showOnboardingModal && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+                    <div className="bg-white rounded-2xl w-full max-w-2xl p-6 my-8">
+                        <div className="flex items-center justify-between mb-6">
+                            <h3 className="text-xl font-bold text-slate-800">Join Affiliate Program</h3>
+                            <button onClick={() => setShowOnboardingModal(false)} className="text-slate-400 hover:text-slate-600">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        {onboardingStep === 1 && (
+                            <div className="space-y-5">
+                                <div className="p-4 bg-gradient-to-r from-violet-50 to-fuchsia-50 rounded-xl border border-violet-100">
+                                    <h4 className="font-semibold text-violet-800 mb-2">🎉 Earn up to 20% commission!</h4>
+                                    <p className="text-sm text-violet-700">Refer new users to DigitalMEng and earn recurring commissions on every sale. Get paid in your preferred method!</p>
+                                </div>
+
+                                {/* Region Selector */}
+                                <div>
+                                    <label className="block text-sm font-semibold text-slate-700 mb-2">Select Your Region</label>
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                        {[
+                                            { id: 'global', label: '🌍 Global', desc: 'PayPal, Stripe, Wise' },
+                                            { id: 'india', label: '🇮🇳 India', desc: 'GPay, PhonePe, UPI' },
+                                            { id: 'southeast_asia', label: '🌏 SE Asia', desc: 'GrabPay, GCash, OVO' },
+                                            { id: 'china', label: '🇨🇳 China', desc: 'Alipay, WeChat' },
+                                            { id: 'europe', label: '🇪🇺 Europe', desc: 'SEPA, Revolut' },
+                                            { id: 'africa', label: '🌍 Africa', desc: 'M-Pesa, Flutterwave' },
+                                            { id: 'latin_america', label: '🌎 LatAm', desc: 'PIX, MercadoPago' },
+                                        ].map(region => (
+                                            <button
+                                                key={region.id}
+                                                type="button"
+                                                onClick={() => setSelectedRegion(region.id)}
+                                                className={`p-3 rounded-xl border-2 text-left transition-all ${selectedRegion === region.id
+                                                    ? 'border-violet-500 bg-violet-50'
+                                                    : 'border-slate-200 hover:border-violet-300'
+                                                    }`}
+                                            >
+                                                <div className="font-medium text-sm">{region.label}</div>
+                                                <div className="text-xs text-slate-500 mt-0.5">{region.desc}</div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Payment Method Selection */}
+                                <div>
+                                    <label className="block text-sm font-semibold text-slate-700 mb-2">Payment Method</label>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto p-1">
+                                        {PAYMENT_METHODS
+                                            .filter(pm => pm.region === selectedRegion || pm.region === 'global')
+                                            .map(method => (
+                                                <button
+                                                    key={method.id}
+                                                    type="button"
+                                                    onClick={() => setOnboardingData({
+                                                        ...onboardingData,
+                                                        paymentMethod: method.id,
+                                                        paymentEmail: '',
+                                                        paymentDetails: {}
+                                                    })}
+                                                    className={`p-3 rounded-xl border-2 text-left transition-all flex items-center gap-3 ${onboardingData.paymentMethod === method.id
+                                                        ? 'border-violet-500 bg-violet-50'
+                                                        : 'border-slate-200 hover:border-violet-300'
+                                                        }`}
+                                                >
+                                                    <span className="text-2xl">{method.icon}</span>
+                                                    <div>
+                                                        <div className="font-medium text-sm text-slate-800">{method.name}</div>
+                                                        <div className="text-xs text-slate-500">{method.description}</div>
+                                                    </div>
+                                                </button>
+                                            ))}
+                                    </div>
+                                </div>
+
+                                {/* Dynamic Payment Details Form */}
+                                <div className="space-y-3">
+                                    <label className="block text-sm font-semibold text-slate-700">Payment Details</label>
+
+                                    {/* Email-based payment methods */}
+                                    {['paypal', 'stripe', 'flutterwave', 'razorpay'].includes(onboardingData.paymentMethod) && (
+                                        <input
+                                            type="email"
+                                            value={onboardingData.paymentEmail}
+                                            onChange={(e) => setOnboardingData({ ...onboardingData, paymentEmail: e.target.value })}
+                                            placeholder="Payment Email"
+                                            className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                        />
+                                    )}
+
+                                    {/* Wise */}
+                                    {onboardingData.paymentMethod === 'wise' && (
+                                        <input
+                                            type="email"
+                                            value={onboardingData.paymentDetails.wiseEmail || ''}
+                                            onChange={(e) => setOnboardingData({
+                                                ...onboardingData,
+                                                paymentDetails: { ...onboardingData.paymentDetails, wiseEmail: e.target.value }
+                                            })}
+                                            placeholder="Wise Email"
+                                            className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                        />
+                                    )}
+
+                                    {/* Skrill */}
+                                    {onboardingData.paymentMethod === 'skrill' && (
+                                        <input
+                                            type="email"
+                                            value={onboardingData.paymentDetails.skrillEmail || ''}
+                                            onChange={(e) => setOnboardingData({
+                                                ...onboardingData,
+                                                paymentDetails: { ...onboardingData.paymentDetails, skrillEmail: e.target.value }
+                                            })}
+                                            placeholder="Skrill Email"
+                                            className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                        />
+                                    )}
+
+                                    {/* Payoneer */}
+                                    {onboardingData.paymentMethod === 'payoneer' && (
+                                        <input
+                                            type="email"
+                                            value={onboardingData.paymentDetails.payoneerEmail || ''}
+                                            onChange={(e) => setOnboardingData({
+                                                ...onboardingData,
+                                                paymentDetails: { ...onboardingData.paymentDetails, payoneerEmail: e.target.value }
+                                            })}
+                                            placeholder="Payoneer Email"
+                                            className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                        />
+                                    )}
+
+                                    {/* Bank Transfer */}
+                                    {onboardingData.paymentMethod === 'bank_transfer' && (
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <input
+                                                type="text"
+                                                value={onboardingData.paymentDetails.accountHolderName || ''}
+                                                onChange={(e) => setOnboardingData({
+                                                    ...onboardingData,
+                                                    paymentDetails: { ...onboardingData.paymentDetails, accountHolderName: e.target.value }
+                                                })}
+                                                placeholder="Account Holder Name"
+                                                className="col-span-2 px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                            />
+                                            <input
+                                                type="text"
+                                                value={onboardingData.paymentDetails.bankName || ''}
+                                                onChange={(e) => setOnboardingData({
+                                                    ...onboardingData,
+                                                    paymentDetails: { ...onboardingData.paymentDetails, bankName: e.target.value }
+                                                })}
+                                                placeholder="Bank Name"
+                                                className="px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                            />
+                                            <input
+                                                type="text"
+                                                value={onboardingData.paymentDetails.accountNumber || ''}
+                                                onChange={(e) => setOnboardingData({
+                                                    ...onboardingData,
+                                                    paymentDetails: { ...onboardingData.paymentDetails, accountNumber: e.target.value }
+                                                })}
+                                                placeholder="Account Number"
+                                                className="px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                            />
+                                            <input
+                                                type="text"
+                                                value={onboardingData.paymentDetails.swiftCode || ''}
+                                                onChange={(e) => setOnboardingData({
+                                                    ...onboardingData,
+                                                    paymentDetails: { ...onboardingData.paymentDetails, swiftCode: e.target.value }
+                                                })}
+                                                placeholder="SWIFT/BIC Code"
+                                                className="px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                            />
+                                            <input
+                                                type="text"
+                                                value={onboardingData.paymentDetails.routingNumber || ''}
+                                                onChange={(e) => setOnboardingData({
+                                                    ...onboardingData,
+                                                    paymentDetails: { ...onboardingData.paymentDetails, routingNumber: e.target.value }
+                                                })}
+                                                placeholder="Routing Number (optional)"
+                                                className="px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                            />
+                                        </div>
+                                    )}
+
+                                    {/* SEPA */}
+                                    {onboardingData.paymentMethod === 'sepa' && (
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <input
+                                                type="text"
+                                                value={onboardingData.paymentDetails.accountHolderName || ''}
+                                                onChange={(e) => setOnboardingData({
+                                                    ...onboardingData,
+                                                    paymentDetails: { ...onboardingData.paymentDetails, accountHolderName: e.target.value }
+                                                })}
+                                                placeholder="Account Holder Name"
+                                                className="col-span-2 px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                            />
+                                            <input
+                                                type="text"
+                                                value={onboardingData.paymentDetails.iban || ''}
+                                                onChange={(e) => setOnboardingData({
+                                                    ...onboardingData,
+                                                    paymentDetails: { ...onboardingData.paymentDetails, iban: e.target.value }
+                                                })}
+                                                placeholder="IBAN"
+                                                className="col-span-2 px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                            />
+                                            <input
+                                                type="text"
+                                                value={onboardingData.paymentDetails.bankName || ''}
+                                                onChange={(e) => setOnboardingData({
+                                                    ...onboardingData,
+                                                    paymentDetails: { ...onboardingData.paymentDetails, bankName: e.target.value }
+                                                })}
+                                                placeholder="Bank Name"
+                                                className="col-span-2 px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                            />
+                                        </div>
+                                    )}
+
+                                    {/* Crypto */}
+                                    {onboardingData.paymentMethod === 'crypto' && (
+                                        <div className="space-y-3">
+                                            <select
+                                                value={onboardingData.paymentDetails.cryptoNetwork || ''}
+                                                onChange={(e) => setOnboardingData({
+                                                    ...onboardingData,
+                                                    paymentDetails: {
+                                                        ...onboardingData.paymentDetails,
+                                                        cryptoNetwork: e.target.value as PaymentDetails['cryptoNetwork']
+                                                    }
+                                                })}
+                                                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                            >
+                                                <option value="">Select Network</option>
+                                                <option value="bitcoin">Bitcoin (BTC)</option>
+                                                <option value="ethereum">Ethereum (ETH)</option>
+                                                <option value="usdt_trc20">USDT (TRC20)</option>
+                                                <option value="usdt_erc20">USDT (ERC20)</option>
+                                                <option value="usdc">USDC</option>
+                                                <option value="solana">Solana (SOL)</option>
+                                                <option value="polygon">Polygon (MATIC)</option>
+                                            </select>
+                                            <input
+                                                type="text"
+                                                value={onboardingData.paymentDetails.cryptoWallet || ''}
+                                                onChange={(e) => setOnboardingData({
+                                                    ...onboardingData,
+                                                    paymentDetails: { ...onboardingData.paymentDetails, cryptoWallet: e.target.value }
+                                                })}
+                                                placeholder="Wallet Address"
+                                                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500 font-mono text-sm"
+                                            />
+                                        </div>
+                                    )}
+
+                                    {/* India - UPI based methods */}
+                                    {['gpay', 'phonepe', 'paytm', 'upi'].includes(onboardingData.paymentMethod) && (
+                                        <div className="space-y-3">
+                                            <input
+                                                type="text"
+                                                value={onboardingData.paymentDetails.upiId || ''}
+                                                onChange={(e) => setOnboardingData({
+                                                    ...onboardingData,
+                                                    paymentDetails: { ...onboardingData.paymentDetails, upiId: e.target.value }
+                                                })}
+                                                placeholder="UPI ID (e.g., name@upi)"
+                                                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                            />
+                                            {['gpay', 'phonepe', 'paytm'].includes(onboardingData.paymentMethod) && (
+                                                <input
+                                                    type="tel"
+                                                    value={onboardingData.paymentDetails.phoneNumber || ''}
+                                                    onChange={(e) => setOnboardingData({
+                                                        ...onboardingData,
+                                                        paymentDetails: { ...onboardingData.paymentDetails, phoneNumber: e.target.value }
+                                                    })}
+                                                    placeholder="Phone Number (with country code)"
+                                                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                                />
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {/* Southeast Asia phone-based wallets */}
+                                    {onboardingData.paymentMethod === 'grabpay' && (
+                                        <input
+                                            type="tel"
+                                            value={onboardingData.paymentDetails.grabpayPhone || ''}
+                                            onChange={(e) => setOnboardingData({
+                                                ...onboardingData,
+                                                paymentDetails: { ...onboardingData.paymentDetails, grabpayPhone: e.target.value }
+                                            })}
+                                            placeholder="GrabPay Phone Number"
+                                            className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                        />
+                                    )}
+
+                                    {onboardingData.paymentMethod === 'gcash' && (
+                                        <input
+                                            type="tel"
+                                            value={onboardingData.paymentDetails.gcashPhone || ''}
+                                            onChange={(e) => setOnboardingData({
+                                                ...onboardingData,
+                                                paymentDetails: { ...onboardingData.paymentDetails, gcashPhone: e.target.value }
+                                            })}
+                                            placeholder="GCash Phone Number"
+                                            className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                        />
+                                    )}
+
+                                    {onboardingData.paymentMethod === 'maya' && (
+                                        <input
+                                            type="tel"
+                                            value={onboardingData.paymentDetails.mayaPhone || ''}
+                                            onChange={(e) => setOnboardingData({
+                                                ...onboardingData,
+                                                paymentDetails: { ...onboardingData.paymentDetails, mayaPhone: e.target.value }
+                                            })}
+                                            placeholder="Maya Phone Number"
+                                            className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                        />
+                                    )}
+
+                                    {onboardingData.paymentMethod === 'dana' && (
+                                        <input
+                                            type="tel"
+                                            value={onboardingData.paymentDetails.danaPhone || ''}
+                                            onChange={(e) => setOnboardingData({
+                                                ...onboardingData,
+                                                paymentDetails: { ...onboardingData.paymentDetails, danaPhone: e.target.value }
+                                            })}
+                                            placeholder="Dana Phone Number"
+                                            className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                        />
+                                    )}
+
+                                    {onboardingData.paymentMethod === 'ovo' && (
+                                        <input
+                                            type="tel"
+                                            value={onboardingData.paymentDetails.ovoPhone || ''}
+                                            onChange={(e) => setOnboardingData({
+                                                ...onboardingData,
+                                                paymentDetails: { ...onboardingData.paymentDetails, ovoPhone: e.target.value }
+                                            })}
+                                            placeholder="OVO Phone Number"
+                                            className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                        />
+                                    )}
+
+                                    {onboardingData.paymentMethod === 'gopay' && (
+                                        <input
+                                            type="tel"
+                                            value={onboardingData.paymentDetails.gopayPhone || ''}
+                                            onChange={(e) => setOnboardingData({
+                                                ...onboardingData,
+                                                paymentDetails: { ...onboardingData.paymentDetails, gopayPhone: e.target.value }
+                                            })}
+                                            placeholder="GoPay Phone Number"
+                                            className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                        />
+                                    )}
+
+                                    {/* China */}
+                                    {onboardingData.paymentMethod === 'alipay' && (
+                                        <input
+                                            type="text"
+                                            value={onboardingData.paymentDetails.alipayId || ''}
+                                            onChange={(e) => setOnboardingData({
+                                                ...onboardingData,
+                                                paymentDetails: { ...onboardingData.paymentDetails, alipayId: e.target.value }
+                                            })}
+                                            placeholder="Alipay ID / Phone"
+                                            className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                        />
+                                    )}
+
+                                    {onboardingData.paymentMethod === 'wechat_pay' && (
+                                        <input
+                                            type="text"
+                                            value={onboardingData.paymentDetails.wechatId || ''}
+                                            onChange={(e) => setOnboardingData({
+                                                ...onboardingData,
+                                                paymentDetails: { ...onboardingData.paymentDetails, wechatId: e.target.value }
+                                            })}
+                                            placeholder="WeChat ID"
+                                            className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                        />
+                                    )}
+
+                                    {/* Revolut */}
+                                    {onboardingData.paymentMethod === 'revolut' && (
+                                        <div className="space-y-3">
+                                            <input
+                                                type="email"
+                                                value={onboardingData.paymentEmail}
+                                                onChange={(e) => setOnboardingData({ ...onboardingData, paymentEmail: e.target.value })}
+                                                placeholder="Revolut Email"
+                                                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                            />
+                                            <input
+                                                type="tel"
+                                                value={onboardingData.paymentDetails.phoneNumber || ''}
+                                                onChange={(e) => setOnboardingData({
+                                                    ...onboardingData,
+                                                    paymentDetails: { ...onboardingData.paymentDetails, phoneNumber: e.target.value }
+                                                })}
+                                                placeholder="Revolut Phone Number"
+                                                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                            />
+                                        </div>
+                                    )}
+
+                                    {/* Africa */}
+                                    {onboardingData.paymentMethod === 'mpesa' && (
+                                        <input
+                                            type="tel"
+                                            value={onboardingData.paymentDetails.mpesaPhone || ''}
+                                            onChange={(e) => setOnboardingData({
+                                                ...onboardingData,
+                                                paymentDetails: { ...onboardingData.paymentDetails, mpesaPhone: e.target.value }
+                                            })}
+                                            placeholder="M-Pesa Phone Number"
+                                            className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                        />
+                                    )}
+
+                                    {/* Latin America */}
+                                    {onboardingData.paymentMethod === 'pix' && (
+                                        <input
+                                            type="text"
+                                            value={onboardingData.paymentDetails.pixKey || ''}
+                                            onChange={(e) => setOnboardingData({
+                                                ...onboardingData,
+                                                paymentDetails: { ...onboardingData.paymentDetails, pixKey: e.target.value }
+                                            })}
+                                            placeholder="PIX Key (CPF, Email, Phone, or Random Key)"
+                                            className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                        />
+                                    )}
+
+                                    {onboardingData.paymentMethod === 'mercadopago' && (
+                                        <input
+                                            type="email"
+                                            value={onboardingData.paymentDetails.mercadopagoEmail || ''}
+                                            onChange={(e) => setOnboardingData({
+                                                ...onboardingData,
+                                                paymentDetails: { ...onboardingData.paymentDetails, mercadopagoEmail: e.target.value }
+                                            })}
+                                            placeholder="MercadoPago Email"
+                                            className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                        />
+                                    )}
+                                </div>
+
+                                <label className="flex items-start gap-3 cursor-pointer p-3 rounded-xl bg-slate-50 border border-slate-200">
+                                    <input
+                                        type="checkbox"
+                                        checked={onboardingData.acceptedTerms}
+                                        onChange={(e) => setOnboardingData({ ...onboardingData, acceptedTerms: e.target.checked })}
+                                        className="mt-0.5 w-5 h-5 rounded border-slate-300 text-violet-600 focus:ring-violet-500"
+                                    />
+                                    <span className="text-sm text-slate-600">
+                                        I agree to the <a href="#" className="text-violet-600 hover:underline font-medium">Affiliate Terms & Conditions</a> and <a href="#" className="text-violet-600 hover:underline font-medium">Privacy Policy</a>
+                                    </span>
+                                </label>
+
+                                <button
+                                    onClick={handleCreateAffiliate}
+                                    disabled={!onboardingData.acceptedTerms || isLoading}
+                                    className="w-full px-4 py-4 bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white rounded-xl font-semibold hover:from-violet-500 hover:to-fuchsia-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-violet-500/25 transition-all"
+                                >
+                                    {isLoading ? (
+                                        <>
+                                            <Loader2 className="w-5 h-5 animate-spin" />
+                                            Creating Account...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <UserPlus className="w-5 h-5" />
+                                            Join Affiliate Program
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

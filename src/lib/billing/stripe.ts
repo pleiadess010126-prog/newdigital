@@ -2,23 +2,23 @@
 // Note: In production, set STRIPE_SECRET_KEY and STRIPE_PUBLISHABLE_KEY in environment variables
 
 // Price IDs from Stripe Dashboard - Replace with your actual Stripe Price IDs
-// Updated December 2024 with new video/audio pricing
+// Updated January 2026 - Optimized for 70%+ profit margin
 export const STRIPE_PRICES = {
     lite: {
-        monthly: 'price_lite_monthly_29',      // $29/month
-        yearly: 'price_lite_yearly_23',       // $23/month billed yearly
+        monthly: 'price_lite_monthly_29',      // $29/month - 80%+ margin
+        yearly: 'price_lite_yearly_23',        // $23/month billed yearly
     },
     starter: {
-        monthly: 'price_starter_monthly_79',   // $79/month - includes 5 min video, 10K voice
+        monthly: 'price_starter_monthly_79',   // $79/month - 74% margin (5 min video, 10K voice)
         yearly: 'price_starter_yearly_63',     // $63/month billed yearly
     },
     pro: {
-        monthly: 'price_pro_monthly_199',      // $199/month - includes 30 min video, 50K voice
-        yearly: 'price_pro_yearly_159',        // $159/month billed yearly
+        monthly: 'price_pro_monthly_299',      // $299/month - 72% margin (20 min video, 40K voice)
+        yearly: 'price_pro_yearly_239',        // $239/month billed yearly (20% off)
     },
     enterprise: {
-        monthly: 'price_enterprise_monthly_599', // $599/month - unlimited everything
-        yearly: 'price_enterprise_yearly_479',   // $479/month billed yearly
+        monthly: 'price_enterprise_monthly_999', // $999/month - 70% margin (fair-use limits apply)
+        yearly: 'price_enterprise_yearly_799',   // $799/month billed yearly (20% off)
     },
 };
 

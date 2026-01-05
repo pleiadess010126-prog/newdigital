@@ -1,0 +1,52 @@
+
+> digitalmeng-v3@0.1.0 dev
+> next dev
+
+▲ Next.js 16.1.1 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.1.7:3000
+- Environments: .env.local, .env
+- Experiments (use with caution):
+  · serverActions
+
+✓ Starting...
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+✓ Ready in 12.6s
+○ Compiling /dashboard ...
+[dotenv@17.2.3] injecting env (0) from .env.local -- tip: 👥 sync secrets across teammates & machines: https://dotenvx.com/ops
+[dotenv@17.2.3] injecting env (0) from .env -- tip: ⚙️  override existing env vars with { override: true }
+--- NEW INIT SEQUENCE ---
+[Prisma] Initializing Prisma Client...
+[Prisma] DB URL Found: true
+[Prisma] Creating Pool...
+[Prisma] Creating Adapter...
+[Prisma] Creating PrismaClient with adapter...
+[Prisma] Client created successfully
+ GET / 200 in 10.1s (compile: 4.2s, proxy.ts: 20ms, render: 5.9s)
+ GET /dashboard 200 in 11.6s (compile: 6.1s, proxy.ts: 392ms, render: 5.1s)
+ GET /api/auth/session 200 in 426ms (compile: 334ms, proxy.ts: 29ms, render: 63ms)
+ GET /api/auth/session 200 in 42ms (compile: 10ms, proxy.ts: 7ms, render: 24ms)
+○ Compiling /login ...
+[dotenv@17.2.3] injecting env (0) from .env.local -- tip: 🗂️ backup and recover secrets: https://dotenvx.com/ops
+[dotenv@17.2.3] injecting env (0) from .env -- tip: 📡 add observability to secrets: https://dotenvx.com/ops
+--- NEW INIT SEQUENCE ---
+[Prisma] Initializing Prisma Client...
+[Prisma] DB URL Found: true
+[Prisma] Creating Pool...
+[Prisma] Creating Adapter...
+[Prisma] Creating PrismaClient with adapter...
+[Prisma] Client created successfully
+[Health] Database check failed: Error: No database host or connection string was set, and key parameters have default values (host: localhost, user: priya, db: priya, password: null). Is an environment variable missing? Alternatively, if you intended to connect with these parameters, please set the host to 'localhost' explicitly.
+    at ignore-listed frames {
+  clientVersion: '7.2.0'
+}
+ GET /api/health 503 in 3.0s (compile: 894ms, proxy.ts: 17ms, render: 2.1s)
+ GET /login 200 in 17.1s (compile: 17.0s, proxy.ts: 45ms, render: 76ms)
+✓ Finished writing to filesystem cache in 12.1s
+✓ Compiled in 11.3s
+ GET /dashboard 200 in 3.4s (compile: 1551ms, proxy.ts: 412ms, render: 1475ms)
+ GET /login 200 in 1451ms (compile: 775ms, proxy.ts: 28ms, render: 647ms)
+ GET /dashboard 200 in 1451ms (compile: 23ms, proxy.ts: 27ms, render: 1401ms)
+ GET /login 200 in 553ms (compile: 36ms, proxy.ts: 95ms, render: 422ms)
+ GET /dashboard 200 in 596ms (compile: 183ms, proxy.ts: 69ms, render: 344ms)
+ GET /login 200 in 226ms (compile: 42ms, proxy.ts: 12ms, render: 172ms)

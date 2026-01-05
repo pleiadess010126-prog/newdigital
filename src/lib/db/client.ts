@@ -342,5 +342,43 @@ export class LocalStorageDatabase implements DatabaseClient {
     }
 }
 
-// Export singleton instance
-export const db = new LocalStorageDatabase();
+// ==========================================
+// SMART DATABASE SELECTOR
+// ==========================================
+// Automatically selects the appropriate database implementation:
+// - Server-side with DATABASE_URL: Uses Prisma (PostgreSQL)
+// - Browser/Demo mode: Uses localStorage
+
+// Note: PrismaDatabase import is done dynamically to avoid issues on client-side
+
+// Environment checks
+const isServer = typeof window === 'undefined';
+const hasDatabaseUrl = process.env.DATABASE_URL && !process.env.DATABASE_URL.includes('localhost:5432/digitalmeng?schema=public');
+const isDemoMode = process.env.DEMO_MODE === 'true' || process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
+
+/**
+ * Get the appropriate database client based on environment
+ * - Production (server + DATABASE_URL): Prisma
+ * - Demo mode or browser: LocalStorage
+ */
+function getDatabaseClient(): DatabaseClient {
+    // In demo mode, always use localStorage for simplicity
+    if (isDemoMode && !isServer) {
+        return new LocalStorageDatabase();
+    }
+
+    // On server with real database URL, use Prisma
+    if (isServer && hasDatabaseUrl) {
+        // Dynamic import to avoid Prisma issues on client-side
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const { prismaDb } = require('./prismaClient');
+        return prismaDb;
+    }
+
+    // Default to localStorage for development/browser
+    return new LocalStorageDatabase();
+}
+
+// Export the smart database instance
+export const db = getDatabaseClient();
+

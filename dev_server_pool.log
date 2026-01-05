@@ -1,0 +1,81 @@
+
+> digitalmeng-v3@0.1.0 dev
+> next dev
+
+▲ Next.js 16.1.1 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.1.7:3000
+- Environments: .env.local, .env
+- Experiments (use with caution):
+  · serverActions
+
+✓ Starting...
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+✓ Ready in 3.3s
+[dotenv@17.2.3] injecting env (0) from .env.local -- tip: 📡 add observability to secrets: https://dotenvx.com/ops
+[dotenv@17.2.3] injecting env (0) from .env -- tip: 🔑 add access controls to secrets: https://dotenvx.com/ops
+[Prisma] Initializing Prisma Client...
+[Prisma] DB URL Found: true
+[Prisma] Attempting to use Neon Serverless adapter
+[Prisma] Client initialization failed with adapter: Invalid URL
+[Prisma] Falling back to standard client with explicit URL
+⨯ Error [PrismaClientConstructorValidationError]: Unknown property datasources provided to PrismaClient constructor.
+Read more at https://pris.ly/d/client-constructor
+    at module evaluation (src\lib\db\prisma.ts:64:35)
+    at module evaluation (src\lib\db\prismaClient.ts:8:1)
+    at getDatabaseClient (src\lib\db\client.ts:374:27)
+    at module evaluation (src\lib\db\client.ts:383:19)
+    at module evaluation (src\app\api\health\route.ts:7:1)
+    at Object.<anonymous> (C:\Users\priya\.gemini\antigravity\DigitalMEng_repo\.next\dev\server\app\api\health\route.js:5:3)
+  62 |         logDebug('[Prisma] Falling back to standard client with explicit URL');
+  63 |         // Fallback to standard
+> 64 |         prisma = global.prisma || new PrismaClient({
+     |                                   ^
+  65 |             datasources: { db: { url: connectionString } }
+  66 |         });
+  67 |     } {
+  page: '/api/health'
+}
+ GET /api/health 500 in 2.1s (compile: 1689ms, proxy.ts: 167ms, render: 268ms)
+○ Compiling / ...
+[dotenv@17.2.3] injecting env (0) from .env.local -- tip: ⚙️  write to custom object with { processEnv: myObject }
+[dotenv@17.2.3] injecting env (0) from .env -- tip: 👥 sync secrets across teammates & machines: https://dotenvx.com/ops
+[Prisma] Initializing Prisma Client...
+[Prisma] DB URL Found: true
+[Prisma] Attempting to use Neon Serverless adapter
+[Prisma] Client initialization failed with adapter: Invalid URL
+[Prisma] Falling back to standard client with explicit URL
+⨯ Error [PrismaClientConstructorValidationError]: Unknown property datasources provided to PrismaClient constructor.
+Read more at https://pris.ly/d/client-constructor
+    at module evaluation (src\lib\db\prisma.ts:64:35)
+    at module evaluation (src\lib\db\prismaClient.ts:8:1)
+    at getDatabaseClient (src\lib\db\client.ts:374:27)
+    at module evaluation (src\lib\db\client.ts:383:19)
+    at module evaluation (src\lib\db\OrganizationContext.tsx:5:1)
+  62 |         logDebug('[Prisma] Falling back to standard client with explicit URL');
+  63 |         // Fallback to standard
+> 64 |         prisma = global.prisma || new PrismaClient({
+     |                                   ^
+  65 |             datasources: { db: { url: connectionString } }
+  66 |         });
+  67 |     } {
+  digest: '2867416177'
+}
+⨯ Error [PrismaClientConstructorValidationError]: Unknown property datasources provided to PrismaClient constructor.
+Read more at https://pris.ly/d/client-constructor
+    at module evaluation (src\lib\db\prisma.ts:64:35)
+    at module evaluation (src\lib\db\prismaClient.ts:8:1)
+    at getDatabaseClient (src\lib\db\client.ts:374:27)
+    at module evaluation (src\lib\db\client.ts:383:19)
+    at module evaluation (src\lib\db\OrganizationContext.tsx:5:1)
+  62 |         logDebug('[Prisma] Falling back to standard client with explicit URL');
+  63 |         // Fallback to standard
+> 64 |         prisma = global.prisma || new PrismaClient({
+     |                                   ^
+  65 |             datasources: { db: { url: connectionString } }
+  66 |         });
+  67 |     } {
+  digest: '2867416177'
+}
+ GET / 500 in 24.0s (compile: 18.7s, proxy.ts: 656ms, render: 4.6s)
+ GET /api/auth/session 200 in 490ms (compile: 397ms, proxy.ts: 21ms, render: 72ms)

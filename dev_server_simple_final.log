@@ -1,0 +1,96 @@
+
+> digitalmeng-v3@0.1.0 dev
+> next dev
+
+▲ Next.js 16.1.1 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.1.7:3000
+- Environments: .env.local, .env
+- Experiments (use with caution):
+  · serverActions
+
+✓ Starting...
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+✓ Ready in 3.7s
+[dotenv@17.2.3] injecting env (0) from .env.local -- tip: 📡 add observability to secrets: https://dotenvx.com/ops
+[dotenv@17.2.3] injecting env (0) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+--- NEW INIT SEQUENCE (STANDARD SIMPLE) ---
+[Prisma] DB URL Found: true
+[Prisma] Creating new PrismaClient instance
+⨯ Error [PrismaClientInitializationError]: `PrismaClient` needs to be constructed with a non-empty, valid `PrismaClientOptions`:
+
+```
+new PrismaClient({
+  ...
+})
+```
+
+or
+
+```
+constructor() {
+  super({ ... });
+}
+```
+          
+    at module evaluation (src\lib\db\prisma.ts:34:25)
+    at module evaluation (src\lib\db\prismaClient.ts:8:1)
+    at getDatabaseClient (src\lib\db\client.ts:374:27)
+    at module evaluation (src\lib\db\client.ts:383:19)
+    at module evaluation (src\lib\db\OrganizationContext.tsx:5:1)
+  32 |     if (!global.prisma) {
+  33 |         logDebug('[Prisma] Creating new PrismaClient instance');
+> 34 |         global.prisma = new PrismaClient();
+     |                         ^
+  35 |     } else {
+  36 |         logDebug('[Prisma] Using cached PrismaClient instance');
+  37 |     } {
+  clientVersion: '7.2.0',
+  errorCode: undefined,
+  retryable: undefined,
+  digest: '3804619107'
+}
+ GET /dashboard 500 in 3.8s (compile: 1197ms, proxy.ts: 108ms, render: 2.5s)
+ GET /api/auth/session 200 in 337ms (compile: 198ms, proxy.ts: 9ms, render: 130ms)
+[dotenv@17.2.3] injecting env (0) from .env.local -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+[dotenv@17.2.3] injecting env (0) from .env -- tip: ⚙️  override existing env vars with { override: true }
+--- NEW INIT SEQUENCE (STANDARD SIMPLE) ---
+[Prisma] DB URL Found: true
+[Prisma] Creating new PrismaClient instance
+⨯ Error [PrismaClientInitializationError]: `PrismaClient` needs to be constructed with a non-empty, valid `PrismaClientOptions`:
+
+```
+new PrismaClient({
+  ...
+})
+```
+
+or
+
+```
+constructor() {
+  super({ ... });
+}
+```
+          
+    at module evaluation (src\lib\db\prisma.ts:34:25)
+    at module evaluation (src\lib\db\prismaClient.ts:8:1)
+    at getDatabaseClient (src\lib\db\client.ts:374:27)
+    at module evaluation (src\lib\db\client.ts:383:19)
+    at module evaluation (src\app\api\health\route.ts:7:1)
+    at Object.<anonymous> (C:\Users\priya\.gemini\antigravity\DigitalMEng_repo\.next\dev\server\app\api\health\route.js:5:3)
+  32 |     if (!global.prisma) {
+  33 |         logDebug('[Prisma] Creating new PrismaClient instance');
+> 34 |         global.prisma = new PrismaClient();
+     |                         ^
+  35 |     } else {
+  36 |         logDebug('[Prisma] Using cached PrismaClient instance');
+  37 |     } {
+  clientVersion: '7.2.0',
+  errorCode: undefined,
+  retryable: undefined,
+  page: '/api/health'
+}
+ GET /api/health 500 in 1239ms (compile: 991ms, proxy.ts: 9ms, render: 239ms)
+✓ Compiled in 1644ms
+ GET /dashboard 200 in 1103ms (compile: 564ms, proxy.ts: 433ms, render: 106ms)

@@ -1,0 +1,811 @@
+// =============================================================================
+// PRISMA SCHEMA FOR DIGITALMENG - Multi-tenant SaaS Marketing Engine
+// =============================================================================
+
+generator client {
+  provider        = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Plan {
+  free
+  lite
+  starter
+  pro
+  enterprise
+}
+
+enum UserRole {
+  owner
+  admin
+  editor
+  viewer
+  superadmin
+}
+
+enum AuthProvider {
+  email
+  google
+  github
+  cognito
+}
+
+enum MemberStatus {
+  pending
+  active
+  suspended
+}
+
+enum CampaignStatus {
+  draft
+  active
+  paused
+  completed
+}
+
+enum ContentType {
+  blog
+  youtube_short
+  instagram_reel
+  facebook_story
+  tiktok
+  linkedin_post
+  twitter_post
+}
+
+enum ContentStatus {
+  draft
+  pending
+  approved
+  scheduled
+  published
+  rejected
+}
+
+enum PlatformType {
+  wordpress
+  youtube
+  instagram
+  facebook
+  twitter
+  linkedin
+  tiktok
+}
+
+enum PlatformConnectionStatus {
+  connected
+  disconnected
+  error
+  expired
+}
+
+enum PublishStatus {
+  pending
+  success
+  failed
+}
+
+enum SubscriptionStatus {
+  active
+  past_due
+  canceled
+  trialing
+  incomplete
+  paused
+}
+
+enum InvoiceStatus {
+  draft
+  open
+  paid
+  void
+  uncollectible
+}
+
+enum AIAgentType {
+  supervisor
+  seo_worker
+  social_worker
+  risk_worker
+  video_worker
+  analytics_worker
+  geo_worker
+}
+
+enum AIAgentStatus {
+  idle
+  working
+  error
+  disabled
+}
+
+enum RiskAlertType {
+  indexation
+  velocity
+  quality
+  spam
+  duplicate
+  bounce_rate
+  traffic_cliff
+}
+
+enum RiskSeverity {
+  low
+  medium
+  high
+  critical
+}
+
+enum RiskAlertStatus {
+  active
+  acknowledged
+  resolved
+  dismissed
+}
+
+enum AffiliateStatus {
+  pending
+  active
+  suspended
+  rejected
+}
+
+enum PayoutStatus {
+  pending
+  processing
+  completed
+  failed
+}
+
+// =============================================================================
+// CORE ENTITIES
+// =============================================================================
+
+/// Organization - The root tenant entity for multi-tenancy
+model Organization {
+  id                   String  @id @default(cuid())
+  name                 String
+  slug                 String  @unique
+  ownerId              String
+  plan                 Plan    @default(free)
+  stripeCustomerId     String? @unique
+  stripeSubscriptionId String? @unique
+
+  // Organization Settings (stored as JSON for flexibility)
+  brandName          String?
+  websiteUrl         String?
+  logoUrl            String?
+  primaryColor       String? @default("#8B5CF6")
+  timezone           String  @default("UTC")
+  defaultLanguage    String  @default("en")
+  emailNotifications Boolean @default(true)
+  weeklyReports      Boolean @default(true)
+
+  // Trial Management
+  trialStartDate DateTime?
+  trialEndDate   DateTime?
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  owner               User                 @relation("OrganizationOwner", fields: [ownerId], references: [id])
+  members             OrganizationMember[]
+  users               User[]               @relation("OrganizationUsers")
+  campaigns           Campaign[]
+  contentItems        ContentItem[]
+  topicPillars        TopicPillar[]
+  platformConnections PlatformConnection[]
+  subscriptions       Subscription[]
+  usageRecords        UsageRecord[]
+  invoices            Invoice[]
+  aiAgents            AIAgent[]
+  riskAlerts          RiskAlert[]
+  activityLogs        ActivityLog[]
+  apiKeys             APIKey[]
+  affiliates          Affiliate[]
+
+  @@index([slug])
+  @@index([ownerId])
+  @@index([stripeCustomerId])
+  @@map("organizations")
+}
+
+/// User - Application users with authentication support
+model User {
+  id             String       @id @default(cuid())
+  email          String       @unique
+  name           String
+  passwordHash   String?
+  authProvider   AuthProvider @default(email)
+  authProviderId String?
+  avatar         String?
+  role           UserRole     @default(viewer)
+  organizationId String?
+  lastLoginAt    DateTime?
+  emailVerified  Boolean      @default(false)
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  organization        Organization?        @relation("OrganizationUsers", fields: [organizationId], references: [id], onDelete: SetNull)
+  ownedOrganizations  Organization[]       @relation("OrganizationOwner")
+  organizationMembers OrganizationMember[]
+  createdCampaigns    Campaign[]           @relation("CampaignCreator")
+  createdContent      ContentItem[]        @relation("ContentCreator")
+  approvedContent     ContentItem[]        @relation("ContentApprover")
+  resolvedAlerts      RiskAlert[]
+  activityLogs        ActivityLog[]
+  createdApiKeys      APIKey[]
+
+  @@index([email])
+  @@index([organizationId])
+  @@index([authProvider, authProviderId])
+  @@map("users")
+}
+
+/// OrganizationMember - Junction table for organization membership
+model OrganizationMember {
+  id             String       @id @default(cuid())
+  organizationId String
+  userId         String
+  role           UserRole     @default(viewer)
+  invitedBy      String
+  invitedAt      DateTime     @default(now())
+  acceptedAt     DateTime?
+  status         MemberStatus @default(pending)
+
+  // Relations
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([organizationId])
+  @@index([userId])
+  @@map("organization_members")
+}
+
+// =============================================================================
+// CAMPAIGN & CONTENT
+// =============================================================================
+
+/// Campaign - Marketing campaigns with settings and metrics
+model Campaign {
+  id             String         @id @default(cuid())
+  organizationId String
+  name           String
+  description    String?
+  status         CampaignStatus @default(draft)
+  createdBy      String
+
+  // Campaign Settings
+  websiteUrl       String?
+  targetAudience   String?
+  industry         String?
+  keywords         String[]
+  velocityMonth1   Int      @default(10)
+  velocityMonth2   Int      @default(20)
+  velocityMonth3   Int      @default(30)
+  blogEnabled      Boolean  @default(true)
+  youtubeEnabled   Boolean  @default(false)
+  instagramEnabled Boolean  @default(false)
+  facebookEnabled  Boolean  @default(false)
+  autoPublish      Boolean  @default(false)
+  requireApproval  Boolean  @default(true)
+
+  // Scheduling Preferences
+  preferredDays    String[]
+  preferredTimes   String[]
+  scheduleTimezone String   @default("UTC")
+
+  // Metrics (denormalized for performance)
+  totalContent     Int @default(0)
+  publishedContent Int @default(0)
+  pendingContent   Int @default(0)
+  totalViews       Int @default(0)
+  totalEngagement  Int @default(0)
+  riskScore        Int @default(0)
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  creator      User          @relation("CampaignCreator", fields: [createdBy], references: [id])
+  contentItems ContentItem[]
+  topicPillars TopicPillar[]
+  riskAlerts   RiskAlert[]
+
+  @@index([organizationId])
+  @@index([status])
+  @@index([createdBy])
+  @@map("campaigns")
+}
+
+/// ContentItem - Generated content pieces
+model ContentItem {
+  id             String        @id @default(cuid())
+  organizationId String
+  campaignId     String
+  title          String
+  content        String        @db.Text
+  type           ContentType
+  status         ContentStatus @default(draft)
+  topicPillarId  String?
+
+  // SEO Metadata
+  seoScore      Int      @default(0)
+  wordCount     Int      @default(0)
+  readingTime   Int      @default(0)
+  keywords      String[]
+  targetKeyword String?
+  hashtags      String[]
+
+  // GEO (Generative Engine Optimization)
+  geoScore            Int?
+  geoGrade            String?
+  geoDirectness       Int?
+  geoAuthority        Int?
+  geoStructure        Int?
+  geoConversational   Int?
+  geoFreshness        Int?
+  geoSnippetOpt       Int?
+  geoSemanticRichness Int?
+  geoReadability      Int?
+  geoRecommendations  String[]
+  geoStrengths        String[]
+
+  // AI Generation Info
+  aiModel          String?
+  generationPrompt String? @db.Text
+
+  // Performance Metrics
+  views       Int @default(0)
+  engagement  Int @default(0)
+  shares      Int @default(0)
+  comments    Int @default(0)
+  dwellTime   Int @default(0)
+  bounceRate  Int @default(0)
+  conversions Int @default(0)
+
+  // Scheduling & Publishing
+  scheduledFor DateTime?
+  publishedAt  DateTime?
+  publishedUrl String?
+
+  // Ownership
+  createdBy  String
+  approvedBy String?
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  organization       Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  campaign           Campaign            @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  topicPillar        TopicPillar?        @relation(fields: [topicPillarId], references: [id], onDelete: SetNull)
+  creator            User                @relation("ContentCreator", fields: [createdBy], references: [id])
+  approver           User?               @relation("ContentApprover", fields: [approvedBy], references: [id])
+  publishedPlatforms PublishedPlatform[]
+
+  @@index([organizationId])
+  @@index([campaignId])
+  @@index([status])
+  @@index([type])
+  @@index([scheduledFor])
+  @@index([createdBy])
+  @@map("content_items")
+}
+
+/// PublishedPlatform - Track content published to each platform
+model PublishedPlatform {
+  id            String        @id @default(cuid())
+  contentItemId String
+  platform      PlatformType
+  postId        String?
+  postUrl       String?
+  publishedAt   DateTime?
+  status        PublishStatus @default(pending)
+  error         String?
+
+  // Relations
+  contentItem ContentItem @relation(fields: [contentItemId], references: [id], onDelete: Cascade)
+
+  @@unique([contentItemId, platform])
+  @@index([contentItemId])
+  @@index([platform])
+  @@map("published_platforms")
+}
+
+/// TopicPillar - Content topic clusters
+model TopicPillar {
+  id             String   @id @default(cuid())
+  organizationId String
+  campaignId     String
+  name           String
+  description    String?
+  keywords       String[]
+  contentCount   Int      @default(0)
+  isActive       Boolean  @default(true)
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  campaign     Campaign      @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  contentItems ContentItem[]
+
+  @@index([organizationId])
+  @@index([campaignId])
+  @@map("topic_pillars")
+}
+
+// =============================================================================
+// PLATFORM CONNECTIONS
+// =============================================================================
+
+/// PlatformConnection - Social media and CMS platform integrations
+model PlatformConnection {
+  id             String                   @id @default(cuid())
+  organizationId String
+  platform       PlatformType
+  name           String
+  status         PlatformConnectionStatus @default(disconnected)
+
+  // Encrypted Credentials (encrypted at application level)
+  accessToken  String?   @db.Text
+  refreshToken String?   @db.Text
+  apiKey       String?
+  apiSecret    String?
+  tokenExpiry  DateTime?
+
+  // Platform Metadata
+  accountId      String?
+  accountName    String?
+  accountUrl     String?
+  followersCount Int?
+  postsCount     Int?
+
+  // Sync tracking
+  lastSyncAt DateTime?
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, platform])
+  @@index([organizationId])
+  @@index([platform])
+  @@map("platform_connections")
+}
+
+// =============================================================================
+// BILLING & USAGE
+// =============================================================================
+
+/// Subscription - Stripe subscription management
+model Subscription {
+  id                   String             @id @default(cuid())
+  organizationId       String
+  stripeSubscriptionId String             @unique
+  stripeCustomerId     String
+  plan                 Plan
+  status               SubscriptionStatus @default(trialing)
+  currentPeriodStart   DateTime
+  currentPeriodEnd     DateTime
+  cancelAtPeriodEnd    Boolean            @default(false)
+  trialEnd             DateTime?
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([stripeSubscriptionId])
+  @@index([status])
+  @@map("subscriptions")
+}
+
+/// UsageRecord - Monthly usage tracking
+model UsageRecord {
+  id               String @id @default(cuid())
+  organizationId   String
+  month            String // Format: YYYY-MM
+  contentGenerated Int    @default(0)
+
+  // Platform Posts
+  wordpressPosts Int @default(0)
+  youtubePosts   Int @default(0)
+  instagramPosts Int @default(0)
+  facebookPosts  Int @default(0)
+  tiktokPosts    Int @default(0)
+  linkedinPosts  Int @default(0)
+  twitterPosts   Int @default(0)
+
+  // API & Infrastructure
+  apiCalls      Int @default(0)
+  storageUsedMB Int @default(0)
+
+  // AI Features
+  videoMinutesUsed        Int @default(0)
+  voiceOverCharactersUsed Int @default(0)
+  musicTracksUsed         Int @default(0)
+  aiImagesGenerated       Int @default(0)
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, month])
+  @@index([organizationId])
+  @@index([month])
+  @@map("usage_records")
+}
+
+/// Invoice - Billing history
+model Invoice {
+  id              String        @id @default(cuid())
+  organizationId  String
+  stripeInvoiceId String        @unique
+  amount          Int // Amount in cents
+  currency        String        @default("usd")
+  status          InvoiceStatus @default(draft)
+  pdfUrl          String?
+  periodStart     DateTime
+  periodEnd       DateTime
+  paidAt          DateTime?
+
+  // Timestamp
+  createdAt DateTime @default(now())
+
+  // Relations
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([status])
+  @@map("invoices")
+}
+
+// =============================================================================
+// AI AGENTS & AUTOMATION
+// =============================================================================
+
+/// AIAgent - Autonomous AI workers
+model AIAgent {
+  id             String        @id @default(cuid())
+  organizationId String
+  type           AIAgentType
+  name           String
+  status         AIAgentStatus @default(idle)
+  lastActiveAt   DateTime?
+  tasksCompleted Int           @default(0)
+  currentTask    String?
+
+  // Configuration
+  enabled            Boolean @default(true)
+  schedule           String? // Cron expression
+  maxConcurrentTasks Int     @default(1)
+  priority           String  @default("medium") // low, medium, high
+  modelPreference    String?
+  customInstructions String? @db.Text
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, type])
+  @@index([organizationId])
+  @@index([status])
+  @@map("ai_agents")
+}
+
+/// RiskAlert - SEO and content risk monitoring
+model RiskAlert {
+  id             String          @id @default(cuid())
+  organizationId String
+  campaignId     String
+  type           RiskAlertType
+  severity       RiskSeverity
+  title          String
+  description    String          @db.Text
+  recommendation String          @db.Text
+  status         RiskAlertStatus @default(active)
+  resolvedAt     DateTime?
+  resolvedBy     String?
+
+  // Timestamp
+  createdAt DateTime @default(now())
+
+  // Relations
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  campaign     Campaign     @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  resolver     User?        @relation(fields: [resolvedBy], references: [id])
+
+  @@index([organizationId])
+  @@index([campaignId])
+  @@index([severity])
+  @@index([status])
+  @@map("risk_alerts")
+}
+
+// =============================================================================
+// ACTIVITY & AUDIT
+// =============================================================================
+
+/// ActivityLog - Audit trail for all actions
+model ActivityLog {
+  id             String  @id @default(cuid())
+  organizationId String
+  userId         String
+  action         String // e.g., 'content.created', 'campaign.updated'
+  entityType     String // e.g., 'content', 'campaign', 'user'
+  entityId       String
+  metadata       Json? // Flexible JSON for additional context
+  ipAddress      String?
+  userAgent      String?
+
+  // Timestamp
+  createdAt DateTime @default(now())
+
+  // Relations
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([userId])
+  @@index([action])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("activity_logs")
+}
+
+// =============================================================================
+// API KEYS
+// =============================================================================
+
+/// APIKey - External API access management
+model APIKey {
+  id             String    @id @default(cuid())
+  organizationId String
+  name           String
+  keyHash        String    @unique // Hashed key for security
+  keyPrefix      String // First 8 chars for identification
+  permissions    String[] // e.g., ['content:read', 'content:write']
+  lastUsedAt     DateTime?
+  expiresAt      DateTime?
+  createdBy      String
+
+  // Timestamp
+  createdAt DateTime @default(now())
+
+  // Relations
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  creator      User         @relation(fields: [createdBy], references: [id])
+
+  @@index([organizationId])
+  @@index([keyPrefix])
+  @@map("api_keys")
+}
+
+// =============================================================================
+// AFFILIATE PROGRAM
+// =============================================================================
+
+/// Affiliate - Affiliate partner management
+model Affiliate {
+  id             String          @id @default(cuid())
+  organizationId String
+  userId         String?
+  email          String
+  name           String
+  referralCode   String          @unique
+  status         AffiliateStatus @default(pending)
+  tier           String          @default("bronze") // bronze, silver, gold, platinum
+  commissionRate Float           @default(0.20) // 20% default
+
+  // Stats
+  totalReferrals  Int   @default(0)
+  activeReferrals Int   @default(0)
+  totalEarnings   Float @default(0)
+  pendingEarnings Float @default(0)
+  paidEarnings    Float @default(0)
+
+  // Payment Info
+  paypalEmail String?
+  bankDetails Json?
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  organization Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  payouts      AffiliatePayout[]
+  transactions AffiliateTransaction[]
+
+  @@index([organizationId])
+  @@index([referralCode])
+  @@index([status])
+  @@map("affiliates")
+}
+
+/// AffiliateTransaction - Commission tracking
+model AffiliateTransaction {
+  id          String   @id @default(cuid())
+  affiliateId String
+  referralId  String // The user who was referred
+  amount      Float // Commission amount
+  plan        Plan
+  description String?
+  createdAt   DateTime @default(now())
+
+  // Relations
+  affiliate Affiliate @relation(fields: [affiliateId], references: [id], onDelete: Cascade)
+
+  @@index([affiliateId])
+  @@index([createdAt])
+  @@map("affiliate_transactions")
+}
+
+/// AffiliatePayout - Payout tracking
+model AffiliatePayout {
+  id            String       @id @default(cuid())
+  affiliateId   String
+  amount        Float
+  status        PayoutStatus @default(pending)
+  method        String // paypal, bank_transfer, etc.
+  transactionId String? // External payment reference
+  processedAt   DateTime?
+  createdAt     DateTime     @default(now())
+
+  // Relations
+  affiliate Affiliate @relation(fields: [affiliateId], references: [id], onDelete: Cascade)
+
+  @@index([affiliateId])
+  @@index([status])
+  @@map("affiliate_payouts")
+}
+
+// =============================================================================
+// SESSION MANAGEMENT (Optional - for JWT blacklisting)
+// =============================================================================
+
+/// Session - User session tracking (for token invalidation)
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  ipAddress String?
+  userAgent String?
+  isValid   Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([token])
+  @@index([expiresAt])
+  @@map("sessions")
+}

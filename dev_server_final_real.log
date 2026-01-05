@@ -1,0 +1,28 @@
+
+> digitalmeng-v3@0.1.0 dev
+> next dev
+
+▲ Next.js 16.1.1 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.1.7:3000
+- Environments: .env.local, .env
+- Experiments (use with caution):
+  · serverActions
+
+✓ Starting...
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+✓ Ready in 9.1s
+[dotenv@17.2.3] injecting env (0) from .env.local -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+[dotenv@17.2.3] injecting env (0) from .env -- tip: ✅ audit secrets and track compliance: https://dotenvx.com/ops
+[Prisma] Initializing Prisma Client...
+[Prisma] DB URL Found: true
+[Prisma] DB URL Length: 125
+[Prisma] DB URL Check: postgresql://ne...de=require
+[Prisma] Attempting to use Neon Serverless adapter
+[Prisma] URL is valid format
+[Prisma] Client initialized with Neon adapter
+[Health] Database check failed: Error: No database host or connection string was set, and key parameters have default values (host: localhost, user: priya, db: priya, password: null). Is an environment variable missing? Alternatively, if you intended to connect with these parameters, please set the host to 'localhost' explicitly.
+    at ignore-listed frames {
+  clientVersion: '7.2.0'
+}
+ GET /api/health 503 in 2.9s (compile: 1738ms, proxy.ts: 688ms, render: 510ms)

@@ -6,7 +6,7 @@ import Image from 'next/image';
 import {
   Sparkles, Shield, Zap, ArrowRight, BarChart3, Layers,
   CheckCircle2, Rocket, TrendingUp, Globe, Play,
-  Youtube, Instagram, Facebook, FileText, Bot, LineChart
+  Youtube, Instagram, Facebook, FileText, Bot, LineChart, Gift
 } from 'lucide-react';
 import LanguageDropdown from '@/components/LanguageDropdown';
 import { getTranslation, SUPPORTED_UI_LANGUAGES } from '@/lib/i18n/translations';
@@ -126,6 +126,13 @@ export default function HomePage() {
               onLanguageChange={handleLanguageChange}
               variant="light"
             />
+            <button
+              onClick={() => router.push('/affiliate-program')}
+              className="px-4 py-2 text-sm font-medium text-emerald-400 hover:text-emerald-300 transition-colors flex items-center gap-1.5"
+            >
+              <Gift className="w-4 h-4" />
+              Affiliate
+            </button>
             <button
               onClick={() => router.push('/login')}
               className="px-4 py-2 text-sm font-medium text-white/70 hover:text-white transition-colors"
@@ -364,9 +371,37 @@ export default function HomePage() {
       </section>
 
       {/* Footer */}
-      <footer className="relative z-10 py-8 border-t border-white/10">
-        <div className="max-w-7xl mx-auto px-6 text-center text-white/30 text-sm">
-          {t('copyright')}
+      <footer className="relative z-10 py-12 border-t border-white/10">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-8">
+            <div className="flex items-center gap-3">
+              <Image
+                src="/logo.jpg"
+                alt="DigitalMEng Logo"
+                width={40}
+                height={40}
+                className="object-contain"
+              />
+              <span className="text-lg font-bold">
+                Digital<span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-fuchsia-400">MEng</span>
+              </span>
+            </div>
+            <div className="flex flex-wrap items-center justify-center gap-6 text-sm">
+              <button onClick={() => router.push('/pricing')} className="text-white/50 hover:text-white transition-colors">Pricing</button>
+              <button onClick={() => router.push('/login')} className="text-white/50 hover:text-white transition-colors">Login</button>
+              <button onClick={() => router.push('/signup')} className="text-white/50 hover:text-white transition-colors">Sign Up</button>
+              <button
+                onClick={() => router.push('/affiliate-program')}
+                className="text-emerald-400 hover:text-emerald-300 transition-colors font-medium flex items-center gap-1.5"
+              >
+                <Gift className="w-4 h-4" />
+                Become an Affiliate
+              </button>
+            </div>
+          </div>
+          <div className="text-center text-white/30 text-sm pt-6 border-t border-white/5">
+            {t('copyright')}
+          </div>
         </div>
       </footer>
     </div>
