@@ -807,7 +807,7 @@ function DashboardContent() {
                 {/* Collaboration Tab */}
                 {activeTab === 'collaboration' && (
                     <div className="space-y-6">
-                        <AIAgentWarRoom />
+                        <AIAgentWarRoom topicPillars={mockTopicPillars} />
                     </div>
                 )}
 
