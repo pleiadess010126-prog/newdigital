@@ -4,13 +4,11 @@
 
 generator client {
   provider        = "prisma-client-js"
-  previewFeatures = ["driverAdapters"]
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
-  relationMode = "prisma"
 }
 
 enum Plan {
@@ -338,7 +336,7 @@ model ContentItem {
   organizationId String
   campaignId     String
   title          String
-  content        String        
+  content        String        @db.Text
   type           ContentType
   status         ContentStatus @default(draft)
   topicPillarId  String?
@@ -367,7 +365,7 @@ model ContentItem {
 
   // AI Generation Info
   aiModel          String?
-  generationPrompt String? 
+  generationPrompt String? @db.Text
 
   // Performance Metrics
   views       Int @default(0)
@@ -466,8 +464,8 @@ model PlatformConnection {
   status         PlatformConnectionStatus @default(disconnected)
 
   // Encrypted Credentials (encrypted at application level)
-  accessToken  String?   
-  refreshToken String?   
+  accessToken  String?   @db.Text
+  refreshToken String?   @db.Text
   apiKey       String?
   apiSecret    String?
   tokenExpiry  DateTime?
@@ -609,7 +607,7 @@ model AIAgent {
   maxConcurrentTasks Int     @default(1)
   priority           String  @default("medium") // low, medium, high
   modelPreference    String?
-  customInstructions String? 
+  customInstructions String? @db.Text
 
   // Timestamps
   createdAt DateTime @default(now())
@@ -632,8 +630,8 @@ model RiskAlert {
   type           RiskAlertType
   severity       RiskSeverity
   title          String
-  description    String          
-  recommendation String          
+  description    String          @db.Text
+  recommendation String          @db.Text
   status         RiskAlertStatus @default(active)
   resolvedAt     DateTime?
   resolvedBy     String?

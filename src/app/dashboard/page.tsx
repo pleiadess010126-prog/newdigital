@@ -70,7 +70,7 @@ import {
 } from 'lucide-react';
 import type { ContentItem, Campaign } from '@/types';
 
-type TabType = 'overview' | 'content' | 'analytics' | 'automation' | 'leads' | 'collaboration' | 'community' | 'localization' | 'tools' | 'settings';
+type TabType = 'overview' | 'content' | 'analytics' | 'automation' | 'leads' | 'collaboration' | 'localization' | 'tools' | 'settings';
 
 function DashboardContent() {
     const router = useRouter();
@@ -167,7 +167,6 @@ function DashboardContent() {
         { id: 'automation' as TabType, label: t('automation'), icon: Bot, color: 'bg-orange-600' },
         { id: 'leads' as TabType, label: t('leads'), icon: Target, color: 'bg-emerald-600' },
         { id: 'collaboration' as TabType, label: t('collaboration'), icon: Swords, color: 'bg-indigo-600' },
-        { id: 'community' as TabType, label: t('community'), icon: MessageSquare, color: 'bg-blue-600' },
         { id: 'localization' as TabType, label: t('global'), icon: Globe, color: 'bg-emerald-600' },
         { id: 'tools' as TabType, label: t('tools'), icon: Wrench, color: 'bg-fuchsia-600' },
         { id: 'settings' as TabType, label: t('settings'), icon: Settings, color: 'bg-slate-600' },
@@ -797,6 +796,7 @@ function DashboardContent() {
                     </div>
                 )}
 
+
                 {/* Leads Tab */}
                 {activeTab === 'leads' && (
                     <div className="space-y-6">
@@ -807,14 +807,7 @@ function DashboardContent() {
                 {/* Collaboration Tab */}
                 {activeTab === 'collaboration' && (
                     <div className="space-y-6">
-                        <AIAgentWarRoom topicPillars={mockTopicPillars} />
-                    </div>
-                )}
-
-                {/* Community Tab */}
-                {activeTab === 'community' && (
-                    <div className="space-y-6">
-                        <CommunityManager />
+                        <AIAgentWarRoom />
                     </div>
                 )}
 
@@ -1081,6 +1074,12 @@ function DashboardContent() {
                                                 { id: 'splinter', label: t('contentSplinter'), icon: Scissors, color: 'text-cyan-600', bg: 'bg-cyan-50' },
                                                 { id: 'utm', label: t('utmBuilder'), icon: Link2, color: 'text-violet-600', bg: 'bg-violet-50' },
                                             ]
+                                        },
+                                        {
+                                            group: t('engagement'),
+                                            items: [
+                                                { id: 'community', label: t('community'), icon: MessageSquare, color: 'text-blue-600', bg: 'bg-blue-50' },
+                                            ]
                                         }
                                     ].map((section) => (
                                         <div key={section.group} className="space-y-1">
@@ -1165,6 +1164,12 @@ function DashboardContent() {
                             {toolsTab === 'utm' && (
                                 <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
                                     <UTMBuilder />
+                                </div>
+                            )}
+
+                            {toolsTab === 'community' && (
+                                <div className="space-y-6">
+                                    <CommunityManager />
                                 </div>
                             )}
                         </div>

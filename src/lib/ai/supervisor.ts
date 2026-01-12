@@ -2,7 +2,7 @@
 import { generateContent, GenerateContentParams } from './contentGenerator';
 import type { TopicPillar, ContentItem } from '@/types';
 
-export type WorkerType = 'seo-worker' | 'social-worker' | 'risk-worker' | 'trend-sentry' | 'agent-debate' | 'geo-worker' | 'analytics-analyst' | 'regional-trend-worker' | 'competitor-spy' | 'psychology-worker' | 'creative-director';
+export type WorkerType = 'seo-worker' | 'social-worker' | 'risk-worker' | 'trend-sentry' | 'agent-debate' | 'geo-worker';
 
 export interface Task {
     id: string;
@@ -40,11 +40,6 @@ export class SupervisorAgent {
         this.workers.set('risk-worker', new RiskWorker());
         this.workers.set('trend-sentry', new TrendSentryWorker());
         this.workers.set('geo-worker', new GEOWorker());
-        this.workers.set('analytics-analyst', new DataAnalystWorker());
-        this.workers.set('regional-trend-worker', new RegionalTrendWorker());
-        this.workers.set('competitor-spy', new CompetitorSpyWorker());
-        this.workers.set('psychology-worker', new PsychologyWorker());
-        this.workers.set('creative-director', new CreativeDirector());
     }
 
     /**
@@ -150,13 +145,11 @@ export class SupervisorAgent {
 
         const debateSteps = [
             { agent: 'Strategist', message: `Goal: Establish ${topic} as a category-defining subject.` },
-            { agent: 'Data Analyst', message: `Insights: Content on ${topic} currently sees 2.4x higher engagement from our top followers. Average view time is up 15%.` },
-            { agent: 'Copywriter', message: `Drafting a high-intent ${contentType} emphasizing unique value based on top-performing comments.` },
-            { agent: 'Critic', message: `The hook is too generic. We need more tension in the first 2 paragraphs to convert those viewers.` },
+            { agent: 'Copywriter', message: `Drafting a high-intent ${contentType} emphasizing unique value.` },
+            { agent: 'Critic', message: `The hook is too generic. We need more tension in the first 2 paragraphs.` },
             { agent: 'SEO Worker', message: `Ensuring we maintain keyword density while addressing the Critic's point.` },
-            { agent: 'Data Analyst', message: `Feedback: Recent comments suggest users want "real-world" examples. Adding those will boost retention.` },
             { agent: 'Risk Worker', message: `Compliance check: Tone is safe, no duplicate content signals.` },
-            { agent: 'Copywriter', message: `Refined draft with real-world examples. Tone is now "Provocative authority".` }
+            { agent: 'Copywriter', message: `Refined draft based on feedback. Tone is now "Provocative authority".` }
         ];
 
         for (const step of debateSteps) {
@@ -452,116 +445,6 @@ class GEOWorker extends WorkerAgent {
         }
 
         return contentItem;
-    }
-}
-
-/**
- * Data Analyst Worker - Analyzes engagement metrics, comments, and follower behavior
- */
-class DataAnalystWorker extends WorkerAgent {
-    name = 'Analytics Analyst';
-    type: WorkerType = 'analytics-analyst';
-
-    async execute(payload: { topic: string }): Promise<any> {
-        console.log(`📊 ${this.name}: Analyzing behavioral data for "${payload.topic}"...`);
-
-        // Simulate data analysis
-        const metrics = {
-            engagementRate: 0.045,
-            avgViews: 12500,
-            followerGrowth: 154,
-            topComments: [
-                "This completely changed how I look at SEO!",
-                "Can you show a real example of this in action?",
-                "What about smaller businesses with low budgets?"
-            ],
-            sentiment: 'positive',
-        };
-
-        console.log(`✅ ${this.name}: Analysis complete. Identified ${metrics.topComments.length} key feedback themes.`);
-
-        return {
-            ...metrics,
-            recommendation: "Increase focus on 'real-world examples' and 'low-budget strategies' based on comment volume.",
-            timestamp: new Date().toISOString()
-        };
-    }
-}
-
-/**
- * Regional Trend Worker - Identifies local festivals, cultural events, and regional trends
- */
-class RegionalTrendWorker extends WorkerAgent {
-    name = 'Trend Hunter';
-    type: WorkerType = 'regional-trend-worker';
-
-    async execute(payload: { region: string } = { region: 'Global' }): Promise<any> {
-        console.log(`🌍 ${this.name}: Identifying local festivals and regional events for "${payload.region}"...`);
-
-        // Simulate regional event discovery
-        const events = [
-            { name: "Diwali/Festival of Lights", type: "Cultural", context: "Huge spike in shopping and celebration content in Asia/Global." },
-            { name: "Super Bowl", type: "Event", context: "Massive engagement for hospitality and sports marketing." },
-            { name: "Cyber Monday", type: "Trend", context: "Peak discount-seeking behavior across all platforms." }
-        ];
-
-        console.log(`✅ ${this.name}: Found ${events.length} relevant regional events for strategy hijacking.`);
-
-        return {
-            activeEvents: events,
-            topTrend: events[0].name,
-            recommendation: `Hijack the "${events[0].name}" peak by pivoting content to include cultural relevance.`,
-            timestamp: new Date().toISOString()
-        };
-    }
-}
-
-/**
- * Competitor Spy Worker - Analyzes competitor strategies and identifies differentiation points
- */
-class CompetitorSpyWorker extends WorkerAgent {
-    name = 'Competitor Spy';
-    type: WorkerType = 'competitor-spy';
-
-    async execute(payload: { topic: string }): Promise<any> {
-        console.log(`🕵️ ${this.name}: Scanning competitors for "${payload.topic}"...`);
-        return {
-            competitorMove: "Competitors are focusing on high-level theory.",
-            differentiation: "Pivot to practical, step-by-step implementation to stand out.",
-            recommendation: "Our competitive edge is 'Utility' over 'Theory'."
-        };
-    }
-}
-
-/**
- * Psychology Worker - Applies behavioral triggers (FOMO, Scarcity, Social Proof)
- */
-class PsychologyWorker extends WorkerAgent {
-    name = 'Behavioral Psychologist';
-    type: WorkerType = 'psychology-worker';
-
-    async execute(payload: { content: string }): Promise<any> {
-        console.log(`🧠 ${this.name}: Applying behavioral triggers...`);
-        return {
-            trigger: "Social Proof + Urgency",
-            recommendation: "Add 'Join 5,000+ experts' and a 24-hour deadline to boost conversion."
-        };
-    }
-}
-
-/**
- * Creative Director - Ensures premium aesthetics and brand harmony
- */
-class CreativeDirector extends WorkerAgent {
-    name = 'Creative Director';
-    type: WorkerType = 'creative-director';
-
-    async execute(payload: any): Promise<any> {
-        console.log(`🎨 ${this.name}: Polishing visual and linguistic aesthetics...`);
-        return {
-            vibe: "Luxury Minimalist",
-            recommendation: "Use serif fonts for headings and deep navy/gold color palette for festive elements."
-        };
     }
 }
 

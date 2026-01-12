@@ -1,13 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { Pool } from '@neondatabase/serverless';
 import { PrismaNeon } from '@prisma/adapter-neon';
-import dotenv from 'dotenv';
-import path from 'path';
 import fs from 'fs';
-
-// Force load env vars
-dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
-dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
 function logDebug(msg: string) {
     console.log(msg);

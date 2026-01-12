@@ -148,8 +148,8 @@ export default function AutopilotPanel() {
                                 setConfig(manager.getConfig());
                             }}
                             className={`p-4 rounded-xl border-2 transition-all text-left ${config.automationMode === mode.id
-                                    ? 'border-indigo-500 bg-indigo-100 ring-4 ring-indigo-500/20'
-                                    : 'border-slate-200 bg-white hover:border-indigo-300'
+                                ? 'border-indigo-500 bg-indigo-100 ring-4 ring-indigo-500/20'
+                                : 'border-slate-200 bg-white hover:border-indigo-300'
                                 }`}
                         >
                             <div className="text-lg font-bold mb-1">{mode.label}</div>
@@ -163,10 +163,10 @@ export default function AutopilotPanel() {
 
                 {/* Mode-specific info */}
                 <div className={`p-4 rounded-xl border ${config.automationMode === 'full-auto'
-                        ? 'bg-amber-50 border-amber-200'
-                        : config.automationMode === 'approval'
-                            ? 'bg-blue-50 border-blue-200'
-                            : 'bg-slate-50 border-slate-200'
+                    ? 'bg-amber-50 border-amber-200'
+                    : config.automationMode === 'approval'
+                        ? 'bg-blue-50 border-blue-200'
+                        : 'bg-slate-50 border-slate-200'
                     }`}>
                     {config.automationMode === 'full-auto' && (
                         <div className="flex items-start gap-3">
