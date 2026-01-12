@@ -29,7 +29,7 @@
     "@aws-sdk/s3-request-presigner": "^3.958.0",
     "@neondatabase/serverless": "^1.0.2",
     "@prisma/adapter-neon": "^7.2.0",
-    "@prisma/client": "^7.2.0",
+    "@prisma/client": "7.2.0",
     "aws-amplify": "^6.15.9",
     "bcryptjs": "^3.0.3",
     "jsonwebtoken": "^9.0.3",
@@ -55,7 +55,7 @@
     "dotenv-cli": "^11.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.1.1",
-    "prisma": "^7.2.0",
+    "prisma": "7.2.0",
     "tailwindcss": "^4",
     "typescript": "5.9.3"
   },

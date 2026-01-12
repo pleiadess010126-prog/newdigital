@@ -27,14 +27,14 @@ if (!connectionString) {
     throw new Error(errorMsg);
 } else {
     try {
-        logDebug('[Prisma] Creating PrismaClient with Neon adapter...');
+        logDebug('[Prisma] Creating PrismaClient...');
 
-        // Create Neon connection pool
-        const pool = new Pool({ connectionString });
-        const adapter = new PrismaNeon(pool);
+        // NOTE: Adapter temporarily disabled - requires proper database setup
+        // const pool = new Pool({ connectionString });
+        // const adapter = new PrismaNeon(pool);
 
         prisma = global.prisma || new PrismaClient({
-            adapter,
+            // adapter,  // Disabled temporarily
             log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
         });
 
@@ -51,12 +51,13 @@ if (!connectionString) {
                 } catch (e) {
                     logDebug('[Prisma] Query Failed: ' + e);
                 }
-            }).catch(e => logDebug('[Prisma] $connect() FAILED: ' + e.message));
+            }).catch((e: unknown) => {
+                logDebug('[Prisma] $connect() FAILED: ' + (e instanceof Error ? e.message : String(e)));
+            });
         }
-
     } catch (error) {
         logDebug('[Prisma] FATAL ERROR during init: ' + (error instanceof Error ? error.message : String(error)));
-        throw error; // Re-throw the error instead of creating invalid client
+        throw error;
     }
 }
 

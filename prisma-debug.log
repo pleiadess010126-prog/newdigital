@@ -161,3 +161,32 @@ Read more at https://pris.ly/d/client-constructor
 2026-01-05T14:39:51.334Z [Prisma] Creating PrismaClient (using DATABASE_URL from env)...
 2026-01-05T14:39:51.337Z [Prisma] FATAL ERROR during init: Using engine type "client" requires either "adapter" or "accelerateUrl" to be provided to PrismaClient constructor.
 Read more at https://pris.ly/d/client-constructor
+2026-01-12T08:42:16.825Z --- PRISMA CLIENT INIT ---
+2026-01-12T08:42:16.827Z [Prisma] DB URL Found: true
+2026-01-12T08:42:16.829Z [Prisma] Creating PrismaClient with Neon adapter...
+2026-01-12T08:42:16.832Z [Prisma] FATAL ERROR during init: "adapter" property can only be provided to PrismaClient constructor when "driverAdapters" preview feature is enabled.
+Read more at https://pris.ly/d/client-constructor
+2026-01-12T08:51:05.227Z --- PRISMA CLIENT INIT ---
+2026-01-12T08:51:05.229Z [Prisma] DB URL Found: true
+2026-01-12T08:51:05.230Z [Prisma] Creating PrismaClient...
+2026-01-12T08:51:05.234Z [Prisma] Client created successfully
+2026-01-12T08:51:05.931Z [Prisma] $connect() FAILED: [1;91merror[0m: [1mError validating datasource `db`: the URL must start with the protocol `mysql://`.[0m
+  [1;94m-->[0m  [4mschema.prisma:7[0m
+[1;94m   | [0m
+[1;94m 6 | [0m  provider     = "mysql"
+[1;94m 7 | [0m  url          = [1;91menv("DATABASE_URL")[0m
+[1;94m   | [0m
+
+Validation Error Count: 1
+2026-01-12T08:55:59.184Z --- PRISMA CLIENT INIT ---
+2026-01-12T08:55:59.186Z [Prisma] DB URL Found: true
+2026-01-12T08:55:59.188Z [Prisma] Creating PrismaClient...
+2026-01-12T08:55:59.190Z [Prisma] Client created successfully
+2026-01-12T08:55:59.286Z [Prisma] $connect() FAILED: [1;91merror[0m: [1mError validating datasource `db`: the URL must start with the protocol `mysql://`.[0m
+  [1;94m-->[0m  [4mschema.prisma:7[0m
+[1;94m   | [0m
+[1;94m 6 | [0m  provider     = "mysql"
+[1;94m 7 | [0m  url          = [1;91menv("DATABASE_URL")[0m
+[1;94m   | [0m
+
+Validation Error Count: 1

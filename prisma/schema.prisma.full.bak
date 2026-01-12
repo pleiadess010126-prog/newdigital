@@ -10,6 +10,7 @@ generator client {
 datasource db {
   provider = "mysql"
   url      = env("DATABASE_URL")
+  relationMode = "prisma"
 }
 
 enum Plan {
@@ -236,7 +237,7 @@ model User {
   updatedAt DateTime @updatedAt
 
   // Relations
-  organization        Organization?        @relation("OrganizationUsers", fields: [organizationId], references: [id], onDelete: NoAction)
+  organization        Organization?        @relation("OrganizationUsers", fields: [organizationId], references: [id], onDelete: SetNull)
   ownedOrganizations  Organization[]       @relation("OrganizationOwner")
   organizationMembers OrganizationMember[]
   createdCampaigns    Campaign[]           @relation("CampaignCreator")
@@ -393,7 +394,7 @@ model ContentItem {
   // Relations
   organization       Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   campaign           Campaign            @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  topicPillar        TopicPillar?        @relation(fields: [topicPillarId], references: [id], onDelete: NoAction)
+  topicPillar        TopicPillar?        @relation(fields: [topicPillarId], references: [id], onDelete: SetNull)
   creator            User                @relation("ContentCreator", fields: [createdBy], references: [id])
   approver           User?               @relation("ContentApprover", fields: [approvedBy], references: [id])
   publishedPlatforms PublishedPlatform[]
