@@ -8,7 +8,7 @@ import Image from 'next/image';
 import {
     Sparkles, Check, X, Zap, Crown, Building2, ArrowRight,
     FileText, Youtube, Instagram, Facebook, Globe, Bot,
-    BarChart3, Shield, Headphones, Clock, Users, Infinity, MapPin
+    BarChart3, Shield, Headphones, Clock, Users, Infinity, MapPin, TrendingUp
 } from 'lucide-react';
 import { detectCurrency, formatCurrency, CURRENCIES, type CurrencyConfig } from '@/lib/billing/currency';
 import { createCheckoutSession, STRIPE_PRICES } from '@/lib/billing/stripe';
@@ -27,17 +27,17 @@ const plans = [
         features: [
             { text: '15 days full access', included: true },
             { text: '2 platforms (WordPress + Instagram)', included: true },
-            { text: '10 AI content pieces', included: true },
-            { text: '3 Instagram posts', included: true },
-            { text: 'Basic AI generation', included: true },
+            { text: '20 AI content pieces', included: true },
+            { text: '1 min AI Video to try', included: true },
+            { text: '1K voice over characters', included: true },
             { text: 'Email support', included: true },
             { text: 'No credit card required', included: true },
         ],
         limits: {
-            content: 10,
+            content: 20,
             platforms: 2,
-            videoMinutes: 0,
-            voiceOverChars: 0,
+            videoMinutes: 1,
+            voiceOverChars: 1000,
         },
         cta: 'Start 15-Day Trial',
     },
@@ -71,11 +71,12 @@ const plans = [
         id: 'starter',
         name: 'Starter',
         description: 'For growing businesses',
-        price: 79,  // Increased from $49 due to video/audio features
+        price: 79,
         priceYearly: 63,
         popular: false,
         icon: Zap,
         color: 'from-blue-500 to-cyan-500',
+        hasOverages: true,
         features: [
             { text: '100 AI content pieces/month', included: true },
             { text: '3 platforms', included: true },
@@ -84,7 +85,7 @@ const plans = [
             { text: '10K voice over characters', included: true },
             { text: '10 music tracks/month', included: true },
             { text: 'Multi-language (5 languages)', included: true },
-            { text: 'Basic analytics', included: true },
+            { text: 'Overage billing available', included: true },
         ],
         limits: {
             content: 100,
@@ -95,14 +96,43 @@ const plans = [
         cta: 'Get Started',
     },
     {
+        id: 'growth',
+        name: 'Growth',
+        description: 'For scaling teams',
+        price: 149,
+        priceYearly: 119,
+        popular: false,
+        icon: TrendingUp,
+        color: 'from-teal-500 to-emerald-500',
+        hasOverages: true,
+        features: [
+            { text: '200 AI content pieces/month', included: true },
+            { text: '4 platforms', included: true },
+            { text: '12 min AI Video/month', included: true },
+            { text: '25K voice over characters', included: true },
+            { text: '25 music tracks/month', included: true },
+            { text: 'Multi-language (10 languages)', included: true },
+            { text: 'Standard analytics', included: true },
+            { text: 'Overage billing available', included: true },
+        ],
+        limits: {
+            content: 200,
+            platforms: 4,
+            videoMinutes: 12,
+            voiceOverChars: 25000,
+        },
+        cta: 'Get Growth',
+    },
+    {
         id: 'pro',
         name: 'Pro',
         description: 'For serious marketers',
-        price: 299,  // Optimized for 72% profit margin
+        price: 299,
         priceYearly: 239,
         popular: true,
         icon: Crown,
         color: 'from-violet-500 to-fuchsia-500',
+        hasOverages: true,
         features: [
             { text: '400 AI content pieces/month', included: true },
             { text: '5 platforms + TikTok', included: true },
@@ -111,7 +141,7 @@ const plans = [
             { text: 'Unlimited music library', included: true },
             { text: 'All languages (20+)', included: true },
             { text: 'Advanced analytics & A/B testing', included: true },
-            { text: 'Priority support', included: true },
+            { text: 'Priority support + Overage billing', included: true },
         ],
         limits: {
             content: 400,
@@ -125,11 +155,12 @@ const plans = [
         id: 'enterprise',
         name: 'Enterprise',
         description: 'For large organizations',
-        price: 999,  // Optimized for 70% profit margin with fair-use limits
+        price: 999,
         priceYearly: 799,
         popular: false,
         icon: Building2,
         color: 'from-orange-500 to-amber-500',
+        hasOverages: true,
         features: [
             { text: '2000 content pieces/month (fair-use)', included: true },
             { text: 'All platforms', included: true },
@@ -138,7 +169,7 @@ const plans = [
             { text: 'AI-generated custom music', included: true },
             { text: 'Custom AI models', included: true },
             { text: 'White-label & custom branding', included: true },
-            { text: 'Dedicated account manager', included: true },
+            { text: 'Dedicated account manager + Overages', included: true },
         ],
         limits: {
             content: 2000,
@@ -149,6 +180,7 @@ const plans = [
         cta: 'Contact Sales',
     },
 ];
+
 
 export default function PricingPage() {
     const router = useRouter();
@@ -432,24 +464,24 @@ export default function PricingPage() {
                             </thead>
                             <tbody>
                                 {[
-                                    { feature: 'Trial/Billing Period', values: ['15 days', 'Monthly', 'Monthly', 'Monthly', 'Monthly'] },
-                                    { feature: 'AI Content Generation', values: ['10 total', '40/mo', '100/mo', '400/mo', '2000/mo'] },
-                                    { feature: 'Publishing Platforms', values: ['2 (WP+IG)', '2', '3', '5 + TikTok', 'All'] },
-                                    { feature: 'Instagram Posts', values: ['3 total', '✓', '✓', '✓', '✓'] },
-                                    { feature: 'AI Video Generation', values: ['—', '—', '5 min/mo', '20 min/mo', '60 min/mo'] },
-                                    { feature: 'AI Voice Over (ElevenLabs)', values: ['—', '2K chars', '10K chars', '40K chars', '150K chars'] },
-                                    { feature: 'Background Music', values: ['—', '2 tracks', '10 tracks/mo', 'Unlimited', 'AI Custom'] },
-                                    { feature: 'Multi-language Support', values: ['—', '2 languages', '5 languages', '20+ languages', 'All'] },
-                                    { feature: 'WordPress Publishing', values: [true, true, true, true, true] },
-                                    { feature: 'YouTube Shorts', values: [false, false, true, true, true] },
-                                    { feature: 'Instagram Reels', values: [true, true, true, true, true] },
-                                    { feature: 'TikTok', values: [false, false, false, true, true] },
-                                    { feature: 'Analytics Dashboard', values: ['Basic', 'Basic', 'Standard', 'Advanced', 'Enterprise'] },
-                                    { feature: 'A/B Testing', values: [false, false, false, true, true] },
-                                    { feature: 'API Access', values: [false, false, false, true, true] },
-                                    { feature: 'White-label Branding', values: [false, false, false, false, true] },
-                                    { feature: 'Priority Support', values: [false, false, false, true, true] },
-                                    { feature: 'Dedicated Account Manager', values: [false, false, false, false, true] },
+                                    { feature: 'Trial/Billing Period', values: ['15 days', 'Monthly', 'Monthly', 'Monthly', 'Monthly', 'Monthly'] },
+                                    { feature: 'AI Content Generation', values: ['20 total', '40/mo', '100/mo', '200/mo', '400/mo', '2000/mo'] },
+                                    { feature: 'Publishing Platforms', values: ['2 (WP+IG)', '2', '3', '4', '5 + TikTok', 'All'] },
+                                    { feature: 'AI Video Generation', values: ['1 min', '—', '5 min/mo', '12 min/mo', '20 min/mo', '60 min/mo'] },
+                                    { feature: 'AI Voice Over (ElevenLabs)', values: ['1K chars', '2K chars', '10K chars', '25K chars', '40K chars', '150K chars'] },
+                                    { feature: 'Background Music', values: ['1 track', '2 tracks', '10 tracks/mo', '25 tracks/mo', 'Unlimited', 'AI Custom'] },
+                                    { feature: 'Multi-language Support', values: ['—', '2 languages', '5 languages', '10 languages', '20+ languages', 'All'] },
+                                    { feature: 'WordPress Publishing', values: [true, true, true, true, true, true] },
+                                    { feature: 'YouTube Shorts', values: [false, false, true, true, true, true] },
+                                    { feature: 'Instagram Reels', values: [true, true, true, true, true, true] },
+                                    { feature: 'TikTok', values: [false, false, false, false, true, true] },
+                                    { feature: 'Analytics Dashboard', values: ['Basic', 'Basic', 'Standard', 'Standard', 'Advanced', 'Enterprise'] },
+                                    { feature: 'Overage Billing', values: [false, false, true, true, true, true] },
+                                    { feature: 'A/B Testing', values: [false, false, false, false, true, true] },
+                                    { feature: 'API Access', values: [false, false, false, true, true, true] },
+                                    { feature: 'White-label Branding', values: [false, false, false, false, false, true] },
+                                    { feature: 'Priority Support', values: [false, false, false, false, true, true] },
+                                    { feature: 'Dedicated Account Manager', values: [false, false, false, false, false, true] },
                                 ].map((row, idx) => (
                                     <tr key={idx} className={idx % 2 === 0 ? 'bg-slate-50' : ''}>
                                         <td className="px-6 py-4 text-sm text-slate-700 font-medium">{row.feature}</td>

@@ -46,13 +46,13 @@ export interface UsageRecord {
 // Free tier includes Instagram to build user confidence before upgrading
 export const PLAN_LIMITS: Record<string, UsageLimits> = {
     free: {
-        contentPerMonth: 10,
+        contentPerMonth: 20,       // Increased from 10 for better trial experience
         platforms: 2,              // WordPress + Instagram (3 posts each)
-        apiCalls: 100,
-        videoMinutes: 0,           // No AI video on free
-        voiceOverCharacters: 0,    // No voice over on free
-        musicTracks: 0,            // No music on free
-        aiImages: 5,               // 5 free AI images to try
+        apiCalls: 150,
+        videoMinutes: 1,           // 1 min AI video to try the feature
+        voiceOverCharacters: 1000, // ~1 min voice to try
+        musicTracks: 1,            // 1 music track to try
+        aiImages: 10,              // 10 free AI images to try
     },
     lite: {
         contentPerMonth: 40,
@@ -71,6 +71,15 @@ export const PLAN_LIMITS: Record<string, UsageLimits> = {
         voiceOverCharacters: 10000, // ~10k chars (~7 min audio)
         musicTracks: 10,           // 10 music track uses
         aiImages: 50,              // 50 AI images/month
+    },
+    growth: {
+        contentPerMonth: 200,      // NEW: Growth tier between Starter and Pro
+        platforms: 4,              // WordPress + Instagram + YouTube + Facebook
+        apiCalls: 4000,
+        videoMinutes: 12,          // 12 minutes of AI video/month
+        voiceOverCharacters: 25000, // ~25k chars (~18 min audio)
+        musicTracks: 25,           // 25 music track uses
+        aiImages: 100,             // 100 AI images/month
     },
     pro: {
         contentPerMonth: 400,      // Reduced from 500 for margin
@@ -288,3 +297,186 @@ export function getTrialStatusMessage(trialStartDate: Date): {
         urgency: 'info'
     };
 }
+
+// ==========================================
+// OVERAGE BILLING SYSTEM
+// ==========================================
+
+/**
+ * Overage pricing per resource type (in USD cents)
+ * These rates maintain 70%+ margin even on overages
+ */
+export const OVERAGE_RATES = {
+    content: 50,              // $0.50 per extra content piece
+    videoMinute: 150,         // $1.50 per extra video minute
+    voiceOverChars: 5,        // $0.05 per 1K extra characters (divide by 1000)
+    aiImage: 25,              // $0.25 per extra AI image
+    apiCall: 1,               // $0.01 per extra API call
+};
+
+/**
+ * Check if overages are enabled for a plan
+ * Free/Lite plans get hard blocked, Starter+ get overage billing
+ */
+export function isOverageEnabled(plan: string): boolean {
+    const overageEnabledPlans = ['starter', 'growth', 'pro', 'enterprise'];
+    return overageEnabledPlans.includes(plan);
+}
+
+/**
+ * Calculate overage charges for a specific resource
+ */
+export function calculateOverageCharge(
+    resourceType: keyof typeof OVERAGE_RATES,
+    overageAmount: number
+): number {
+    const rate = OVERAGE_RATES[resourceType];
+
+    // Voice over is charged per 1K chars
+    if (resourceType === 'voiceOverChars') {
+        return Math.ceil(overageAmount / 1000) * rate;
+    }
+
+    return overageAmount * rate;
+}
+
+/**
+ * Get total overage charges for a usage record
+ */
+export function calculateTotalOverages(
+    usage: UsageRecord,
+    plan: string
+): { total: number; breakdown: Record<string, number> } {
+    const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.free;
+    const breakdown: Record<string, number> = {};
+    let total = 0;
+
+    // Content overage
+    if (limits.contentPerMonth !== -1 && usage.contentGenerated > limits.contentPerMonth) {
+        const overage = usage.contentGenerated - limits.contentPerMonth;
+        const charge = calculateOverageCharge('content', overage);
+        breakdown.content = charge;
+        total += charge;
+    }
+
+    // Video overage
+    if (limits.videoMinutes !== -1 && usage.videoMinutesUsed > limits.videoMinutes) {
+        const overage = usage.videoMinutesUsed - limits.videoMinutes;
+        const charge = calculateOverageCharge('videoMinute', overage);
+        breakdown.video = charge;
+        total += charge;
+    }
+
+    // Voice over overage
+    if (limits.voiceOverCharacters !== -1 && usage.voiceOverCharactersUsed > limits.voiceOverCharacters) {
+        const overage = usage.voiceOverCharactersUsed - limits.voiceOverCharacters;
+        const charge = calculateOverageCharge('voiceOverChars', overage);
+        breakdown.voiceOver = charge;
+        total += charge;
+    }
+
+    // AI Images overage
+    if (limits.aiImages !== -1 && usage.aiImagesGenerated > limits.aiImages) {
+        const overage = usage.aiImagesGenerated - limits.aiImages;
+        const charge = calculateOverageCharge('aiImage', overage);
+        breakdown.aiImages = charge;
+        total += charge;
+    }
+
+    // API calls overage (Enterprise only typically)
+    if (limits.apiCalls !== -1 && usage.apiCalls > limits.apiCalls) {
+        const overage = usage.apiCalls - limits.apiCalls;
+        const charge = calculateOverageCharge('apiCall', overage);
+        breakdown.apiCalls = charge;
+        total += charge;
+    }
+
+    return { total, breakdown };
+}
+
+/**
+ * Check if a resource action should be blocked or allowed with overage
+ */
+export function checkResourceLimit(
+    resourceType: 'content' | 'video' | 'voiceOver' | 'aiImage' | 'api',
+    currentUsage: number,
+    plan: string
+): { allowed: boolean; reason: string; overageRate?: number } {
+    const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.free;
+
+    const limitMap: Record<string, number> = {
+        content: limits.contentPerMonth,
+        video: limits.videoMinutes,
+        voiceOver: limits.voiceOverCharacters,
+        aiImage: limits.aiImages,
+        api: limits.apiCalls,
+    };
+
+    const rateMap: Record<string, keyof typeof OVERAGE_RATES> = {
+        content: 'content',
+        video: 'videoMinute',
+        voiceOver: 'voiceOverChars',
+        aiImage: 'aiImage',
+        api: 'apiCall',
+    };
+
+    const limit = limitMap[resourceType];
+
+    // Unlimited
+    if (limit === -1) {
+        return { allowed: true, reason: 'Unlimited usage on your plan' };
+    }
+
+    // Within limits
+    if (currentUsage < limit) {
+        return { allowed: true, reason: `${limit - currentUsage} remaining` };
+    }
+
+    // At or over limit - check if overages allowed
+    if (isOverageEnabled(plan)) {
+        const rate = OVERAGE_RATES[rateMap[resourceType]];
+        return {
+            allowed: true,
+            reason: 'Overage charges will apply',
+            overageRate: rate
+        };
+    }
+
+    // Hard blocked for free/lite plans
+    return {
+        allowed: false,
+        reason: `You've reached your ${resourceType} limit. Upgrade to continue.`
+    };
+}
+
+/**
+ * Format overage amount for display
+ */
+export function formatOverageAmount(cents: number): string {
+    return `$${(cents / 100).toFixed(2)}`;
+}
+
+/**
+ * Get overage alert message
+ */
+export function getOverageAlertMessage(
+    usage: UsageRecord,
+    plan: string
+): { hasOverages: boolean; message: string; totalCharge: string } | null {
+    if (!isOverageEnabled(plan)) return null;
+
+    const { total, breakdown } = calculateTotalOverages(usage, plan);
+
+    if (total === 0) return null;
+
+    const items = Object.entries(breakdown)
+        .filter(([, v]) => v > 0)
+        .map(([k, v]) => `${k}: ${formatOverageAmount(v)}`);
+
+    return {
+        hasOverages: true,
+        message: `You have overage charges this month: ${items.join(', ')}`,
+        totalCharge: formatOverageAmount(total)
+    };
+}
+

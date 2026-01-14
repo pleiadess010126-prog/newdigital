@@ -12,6 +12,10 @@ export const STRIPE_PRICES = {
         monthly: 'price_starter_monthly_79',   // $79/month - 74% margin (5 min video, 10K voice)
         yearly: 'price_starter_yearly_63',     // $63/month billed yearly
     },
+    growth: {
+        monthly: 'price_growth_monthly_149',   // $149/month - 73% margin (12 min video, 25K voice)
+        yearly: 'price_growth_yearly_119',     // $119/month billed yearly (20% off)
+    },
     pro: {
         monthly: 'price_pro_monthly_299',      // $299/month - 72% margin (20 min video, 40K voice)
         yearly: 'price_pro_yearly_239',        // $239/month billed yearly (20% off)
@@ -98,16 +102,17 @@ export interface Subscription {
     id: string;
     status: SubscriptionStatus;
     priceId: string;
-    planId: 'free' | 'lite' | 'starter' | 'pro' | 'enterprise';
+    planId: 'free' | 'lite' | 'starter' | 'growth' | 'pro' | 'enterprise';
     currentPeriodStart: Date;
     currentPeriodEnd: Date;
     cancelAtPeriodEnd: boolean;
 }
 
 // Map Stripe price ID to plan ID
-export function getPlanFromPriceId(priceId: string): 'free' | 'lite' | 'starter' | 'pro' | 'enterprise' {
+export function getPlanFromPriceId(priceId: string): 'free' | 'lite' | 'starter' | 'growth' | 'pro' | 'enterprise' {
     if (priceId.includes('lite')) return 'lite';
     if (priceId.includes('starter')) return 'starter';
+    if (priceId.includes('growth')) return 'growth';
     if (priceId.includes('pro')) return 'pro';
     if (priceId.includes('enterprise')) return 'enterprise';
     return 'free';
