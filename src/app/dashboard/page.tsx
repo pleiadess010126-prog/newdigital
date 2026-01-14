@@ -45,6 +45,8 @@ import CloningDashboard from '@/components/CloningDashboard';
 import LeadIntelligence from '@/components/LeadIntelligence';
 import AIAgentWarRoom from '@/components/AIAgentWarRoom';
 import CommunityManager from '@/components/CommunityManager';
+import SocialCRMDashboard from '@/components/SocialCRMDashboard';
+import KnowledgeBase from '@/components/KnowledgeBase';
 import CulturalLocalization from '@/components/CulturalLocalization';
 import LanguageDropdown from '@/components/LanguageDropdown';
 import { SUPPORTED_UI_LANGUAGES, getTranslation } from '@/lib/i18n/translations';
@@ -63,14 +65,14 @@ import { useState, useEffect, Suspense } from 'react';
 import Image from 'next/image';
 import {
     Folder, TrendingUp, Calendar, Activity, Sparkles, Zap, Rocket,
-    LayoutDashboard, FileText, BarChart3, Settings, Bot,
+    LayoutDashboard, FileText, BarChart3, Settings, Bot, Mail,
     Youtube, Instagram, Facebook, Globe, ArrowUpRight, ArrowDownRight, Eye, LogOut, User, Users, Bell, Search, ChevronDown,
-    Video, Languages, Clock, FlaskConical, Link2, Building2, Shield, CreditCard, Wrench,
+    Video, Languages, Clock, FlaskConical, Link2, Building2, Shield, CreditCard, Wrench, Database,
     Scissors, Hash, Target, CheckCircle2, ImageIcon, Wand2, Repeat2, Swords, MessageSquare, Gift, Crown
 } from 'lucide-react';
 import type { ContentItem, Campaign } from '@/types';
 
-type TabType = 'overview' | 'content' | 'analytics' | 'automation' | 'leads' | 'collaboration' | 'localization' | 'tools' | 'settings';
+type TabType = 'overview' | 'content' | 'analytics' | 'automation' | 'leads' | 'collaboration' | 'localization' | 'tools' | 'settings' | 'knowledge';
 
 function DashboardContent() {
     const router = useRouter();
@@ -94,6 +96,8 @@ function DashboardContent() {
     const [toolsTab, setToolsTab] = useState<string>('influencers');
     const [showUserMenu, setShowUserMenu] = useState(false);
     const [currentLanguage, setCurrentLanguage] = useState('en');
+    const [organizationId, setOrganizationId] = useState<string>('');
+    const [orgSettings, setOrgSettings] = useState<any>(null);
 
     // Load language preference on mount
     useEffect(() => {
@@ -102,6 +106,91 @@ function DashboardContent() {
             setCurrentLanguage(savedLang);
         }
     }, []);
+
+    // Fetch organization details
+    useEffect(() => {
+        if (!user) return;
+
+        const fetchOrg = async () => {
+            try {
+                // If user has org ID in session, use it
+                let url = '/api/organizations';
+                if (user.organizationId) {
+                    url += `?id=${user.organizationId}`;
+                }
+
+                const res = await fetch(url);
+                if (res.ok) {
+                    const data = await res.json();
+                    // Handle list response or single object response
+                    if (data.organizations && Array.isArray(data.organizations)) {
+                        if (data.organizations.length > 0) {
+                            const org = data.organizations[0];
+                            setOrganizationId(org.id);
+                            // Transform settings if needed or pass as is
+                            if (org.settings) {
+                                // Map organization settings to BrandProfile format
+                                setOrgSettings({
+                                    brandName: org.settings.brandName,
+                                    websiteUrl: org.settings.websiteUrl,
+                                    logoUrl: org.settings.logoUrl,
+                                    primaryColor: org.settings.primaryColor,
+                                    industry: org.settings.industry || org.industry,
+                                    fromEmail: org.settings.fromEmail || org.fromEmail,
+                                    fromPhone: org.settings.fromPhone || org.fromPhone,
+                                    businessLocation: org.settings.location || org.location,
+                                    // other fields would be in json or use defaults
+                                });
+                            }
+                        }
+                    } else if (data.id) {
+                        setOrganizationId(data.id);
+                        if (data.settings) {
+                            setOrgSettings({
+                                brandName: data.settings.brandName,
+                                websiteUrl: data.settings.websiteUrl,
+                                logoUrl: data.settings.logoUrl,
+                                primaryColor: data.settings.primaryColor,
+                                industry: data.settings.industry || data.industry,
+                                fromEmail: data.settings.fromEmail || data.fromEmail,
+                                fromPhone: data.settings.fromPhone || data.fromPhone,
+                                businessLocation: data.settings.location || data.location,
+                            });
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error("Error fetching organization:", err);
+            }
+        };
+
+        fetchOrg();
+    }, [user]);
+
+    // Fetch Content Items
+    useEffect(() => {
+        if (!organizationId) return;
+
+        const fetchContent = async () => {
+            try {
+                const res = await fetch(`/api/content?organizationId=${organizationId}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.items && Array.isArray(data.items)) {
+                        // If we have real data, use it. Otherwise keep mock for demo if empty?
+                        // Better to show real state (empty) if connected.
+                        if (data.items.length > 0) {
+                            setContentItems(data.items);
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to fetch content:', error);
+            }
+        };
+
+        fetchContent();
+    }, [organizationId]);
 
     // Handle language change
     const handleLanguageChange = (langCode: string) => {
@@ -114,30 +203,66 @@ function DashboardContent() {
     // Listen to tab changes from URL (for AI sync)
     useEffect(() => {
         const tab = searchParams.get('tab');
-        if (tab && ['overview', 'content', 'analytics', 'automation', 'tools', 'settings'].includes(tab)) {
+        if (tab && ['overview', 'content', 'analytics', 'automation', 'tools', 'settings', 'knowledge'].includes(tab)) {
             setActiveTab(tab as TabType);
         }
     }, [searchParams]);
+
+    // Journey Stats State
+    const [journeyStats, setJourneyStats] = useState({ active: 0, contacts: 0, emails: 0 });
+
+    useEffect(() => {
+        fetch('/api/journeys')
+            .then(res => res.json())
+            .then(data => {
+                if (data.journeys) {
+                    const activeCount = data.journeys.filter((j: any) => j.status === 'active').length;
+                    const contactCount = data.journeys.reduce((sum: number, j: any) => sum + (j.stats?.totalEntered || 0), 0);
+                    // Mock email count as 3x contacts for demo purposes if not tracked separately
+                    const emailCount = data.journeys.reduce((sum: number, j: any) => sum + (j.stats?.completed || 0) * 3, 0);
+                    setJourneyStats({ active: activeCount, contacts: contactCount, emails: emailCount });
+                }
+            })
+            .catch(err => console.error('Failed to load journey stats', err));
+    }, []);
 
     const handleLogout = () => {
         logout();
         router.push('/');
     };
 
-    const handleApprove = (id: string) => {
-        setContentItems((items) =>
-            items.map((item) =>
-                item.id === id ? { ...item, status: 'approved' as const } : item
-            )
-        );
+    const handleApprove = async (id: string) => {
+        try {
+            await fetch('/api/content', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id, status: 'approved' })
+            });
+            setContentItems((items) =>
+                items.map((item) =>
+                    item.id === id ? { ...item, status: 'approved' as const } : item
+                )
+            );
+        } catch (error) {
+            console.error('Failed to approve content:', error);
+        }
     };
 
-    const handleReject = (id: string) => {
-        setContentItems((items) =>
-            items.map((item) =>
-                item.id === id ? { ...item, status: 'rejected' as const } : item
-            )
-        );
+    const handleReject = async (id: string) => {
+        try {
+            await fetch('/api/content', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id, status: 'rejected' })
+            });
+            setContentItems((items) =>
+                items.map((item) =>
+                    item.id === id ? { ...item, status: 'rejected' as const } : item
+                )
+            );
+        } catch (error) {
+            console.error('Failed to reject content:', error);
+        }
     };
 
     const handleBatchGenerate = (results: any[]) => {
@@ -164,9 +289,9 @@ function DashboardContent() {
         { id: 'overview' as TabType, label: t('overview'), icon: LayoutDashboard, color: 'bg-violet-600' },
         { id: 'content' as TabType, label: t('content'), icon: FileText, color: 'bg-blue-600' },
         { id: 'analytics' as TabType, label: t('analytics'), icon: BarChart3, color: 'bg-emerald-600' },
-        { id: 'automation' as TabType, label: t('automation'), icon: Bot, color: 'bg-orange-600' },
+        { id: 'automation' as TabType, label: 'War Room (ASI)', icon: Bot, color: 'bg-orange-600' },
+        { id: 'knowledge' as TabType, label: 'Brand Vault', icon: Database, color: 'bg-indigo-600' },
         { id: 'leads' as TabType, label: t('leads'), icon: Target, color: 'bg-emerald-600' },
-        { id: 'collaboration' as TabType, label: t('collaboration'), icon: Swords, color: 'bg-indigo-600' },
         { id: 'localization' as TabType, label: t('global'), icon: Globe, color: 'bg-emerald-600' },
         { id: 'tools' as TabType, label: t('tools'), icon: Wrench, color: 'bg-fuchsia-600' },
         { id: 'settings' as TabType, label: t('settings'), icon: Settings, color: 'bg-slate-600' },
@@ -271,6 +396,48 @@ function DashboardContent() {
                                         >
                                             <Gift className="w-4 h-4" />
                                             <span className="text-sm font-medium">Affiliate Program</span>
+                                        </button>
+                                        <button
+                                            onClick={() => router.push('/email')}
+                                            className="w-full flex items-center gap-3 px-3 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors text-left"
+                                        >
+                                            <Mail className="w-4 h-4" />
+                                            <span className="text-sm font-medium">Email Marketing</span>
+                                        </button>
+                                        <button
+                                            onClick={() => router.push('/journeys')}
+                                            className="w-full flex items-center gap-3 px-3 py-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors text-left"
+                                        >
+                                            <Bot className="w-4 h-4" />
+                                            <span className="text-sm font-medium">Journey Builder</span>
+                                        </button>
+                                        <button
+                                            onClick={() => router.push('/crm')}
+                                            className="w-full flex items-center gap-3 px-3 py-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors text-left"
+                                        >
+                                            <Users className="w-4 h-4" />
+                                            <span className="text-sm font-medium">CRM Integrations</span>
+                                        </button>
+                                        <button
+                                            onClick={() => router.push('/sms')}
+                                            className="w-full flex items-center gap-3 px-3 py-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors text-left"
+                                        >
+                                            <MessageSquare className="w-4 h-4" />
+                                            <span className="text-sm font-medium">SMS & WhatsApp</span>
+                                        </button>
+                                        <button
+                                            onClick={() => router.push('/ai')}
+                                            className="w-full flex items-center gap-3 px-3 py-2 text-violet-600 hover:bg-violet-50 rounded-lg transition-colors text-left"
+                                        >
+                                            <Sparkles className="w-4 h-4" />
+                                            <span className="text-sm font-medium">Predictive AI</span>
+                                        </button>
+                                        <button
+                                            onClick={() => router.push('/autopilot')}
+                                            className="w-full flex items-center gap-3 px-3 py-2 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors text-left"
+                                        >
+                                            <Bot className="w-4 h-4" />
+                                            <span className="text-sm font-medium">Marketing Autopilot</span>
                                         </button>
                                         {/* CXO Links - Individual Roles */}
                                         {(user?.isAdmin || user?.plan === 'enterprise') && (
@@ -800,7 +967,48 @@ function DashboardContent() {
                 {/* Leads Tab */}
                 {activeTab === 'leads' && (
                     <div className="space-y-6">
-                        <LeadIntelligence />
+                        {/* Sub-navigation for Leads */}
+                        <div className="bg-white rounded-xl p-1 shadow-sm border border-slate-200 inline-flex">
+                            <button
+                                onClick={() => setToolsTab('social-crm')}
+                                className={`px-6 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${toolsTab === 'social-crm'
+                                    ? 'bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-lg'
+                                    : 'text-slate-600 hover:text-slate-800 hover:bg-slate-100'
+                                    }`}
+                            >
+                                <Users className="w-4 h-4" />
+                                Social CRM
+                            </button>
+                            <button
+                                onClick={() => setToolsTab('lead-intelligence')}
+                                className={`px-6 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${toolsTab === 'lead-intelligence'
+                                    ? 'bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-lg'
+                                    : 'text-slate-600 hover:text-slate-800 hover:bg-slate-100'
+                                    }`}
+                            >
+                                <Target className="w-4 h-4" />
+                                Lead Intelligence
+                            </button>
+                            <button
+                                onClick={() => setToolsTab('community')}
+                                className={`px-6 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${toolsTab === 'community'
+                                    ? 'bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-lg'
+                                    : 'text-slate-600 hover:text-slate-800 hover:bg-slate-100'
+                                    }`}
+                            >
+                                <MessageSquare className="w-4 h-4" />
+                                Community
+                            </button>
+                        </div>
+
+                        {/* Social CRM Dashboard */}
+                        {toolsTab === 'social-crm' && <SocialCRMDashboard />}
+
+                        {/* Lead Intelligence */}
+                        {toolsTab === 'lead-intelligence' && <LeadIntelligence />}
+
+                        {/* Community Manager */}
+                        {toolsTab === 'community' && <CommunityManager />}
                     </div>
                 )}
 
@@ -945,6 +1153,198 @@ function DashboardContent() {
                 {/* Automation Tab */}
                 {activeTab === 'automation' && (
                     <div className="space-y-6">
+                        {/* Unified Automation Header */}
+                        <div className="bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 rounded-2xl p-6 text-white">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-4">
+                                    <div className="p-3 bg-white/20 rounded-xl">
+                                        <Bot className="w-8 h-8" />
+                                    </div>
+                                    <div>
+                                        <h1 className="text-2xl font-bold">🤖 Automation Center</h1>
+                                        <p className="text-white/80">ALL your marketing automation in ONE place - set it and forget it!</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-3 bg-white/10 rounded-xl px-4 py-2">
+                                    <span className="text-sm text-white/70">Master Switch</span>
+                                    <div className="w-12 h-6 bg-emerald-400 rounded-full relative cursor-pointer">
+                                        <div className="absolute right-1 top-1 w-4 h-4 bg-white rounded-full shadow" />
+                                    </div>
+                                    <span className="text-sm font-bold text-emerald-300">ON</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Three Clear Sections */}
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                            {/* 1. CONTENT AUTOPILOT */}
+                            <div className="bg-white rounded-2xl border-2 border-blue-200 shadow-sm overflow-hidden">
+                                <div className="bg-gradient-to-r from-blue-500 to-cyan-500 p-4 text-white">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 bg-white/20 rounded-lg">
+                                            <FileText className="w-5 h-5" />
+                                        </div>
+                                        <div>
+                                            <h3 className="font-bold text-lg">📝 Content Autopilot</h3>
+                                            <p className="text-sm text-white/80">Creates blogs, videos, social posts</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="p-4 space-y-4">
+                                    <div className="text-center py-4 bg-blue-50 rounded-xl">
+                                        <p className="text-sm text-blue-600 font-medium">What it does:</p>
+                                        <p className="text-xs text-slate-500 mt-1">
+                                            AI writes blog posts, YouTube scripts,<br />
+                                            Instagram reels, Facebook stories
+                                        </p>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <div className="flex items-center justify-between text-sm">
+                                            <span className="text-slate-600">Status</span>
+                                            <span className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-bold">Active</span>
+                                        </div>
+                                        <div className="flex items-center justify-between text-sm">
+                                            <span className="text-slate-600">Content Created</span>
+                                            <span className="font-bold text-slate-800">45 this month</span>
+                                        </div>
+                                        <div className="flex items-center justify-between text-sm">
+                                            <span className="text-slate-600">Next Scheduled</span>
+                                            <span className="font-bold text-slate-800">Today 2pm</span>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => {
+                                            const element = document.getElementById('content-autopilot-settings');
+                                            if (element) {
+                                                element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                            }
+                                        }}
+                                        className="w-full py-2.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all"
+                                    >
+                                        Manage Content Autopilot ↓
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* 2. CAMPAIGN AUTOPILOT */}
+                            <div className="bg-white rounded-2xl border-2 border-rose-200 shadow-sm overflow-hidden">
+                                <div className="bg-gradient-to-r from-rose-500 to-orange-500 p-4 text-white">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 bg-white/20 rounded-lg">
+                                            <Mail className="w-5 h-5" />
+                                        </div>
+                                        <div>
+                                            <h3 className="font-bold text-lg">📧 Campaign Autopilot</h3>
+                                            <p className="text-sm text-white/80">Sends emails & SMS automatically</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="p-4 space-y-4">
+                                    <div className="text-center py-4 bg-rose-50 rounded-xl">
+                                        <p className="text-sm text-rose-600 font-medium">What it does:</p>
+                                        <p className="text-xs text-slate-500 mt-1">
+                                            AI creates & sends welcome emails,<br />
+                                            re-engagement, churn prevention, SMS
+                                        </p>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <div className="flex items-center justify-between text-sm">
+                                            <span className="text-slate-600">Status</span>
+                                            <span className="px-2 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-bold">Approval Mode</span>
+                                        </div>
+                                        <div className="flex items-center justify-between text-sm">
+                                            <span className="text-slate-600">Campaigns Sent</span>
+                                            <span className="font-bold text-slate-800">12 this month</span>
+                                        </div>
+                                        <div className="flex items-center justify-between text-sm">
+                                            <span className="text-slate-600">Pending Approval</span>
+                                            <span className="font-bold text-amber-600">3 campaigns</span>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => router.push('/autopilot')}
+                                        className="w-full py-2.5 bg-rose-600 text-white rounded-xl font-bold hover:bg-rose-700 transition-all"
+                                    >
+                                        Manage Campaign Autopilot
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* 3. JOURNEY AUTOMATION */}
+                            <div className="bg-white rounded-2xl border-2 border-emerald-200 shadow-sm overflow-hidden">
+                                <div className="bg-gradient-to-r from-emerald-500 to-teal-500 p-4 text-white">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 bg-white/20 rounded-lg">
+                                            <Zap className="w-5 h-5" />
+                                        </div>
+                                        <div>
+                                            <h3 className="font-bold text-lg">🔄 Journey Automation</h3>
+                                            <p className="text-sm text-white/80">Multi-step workflow sequences</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="p-4 space-y-4">
+                                    <div className="text-center py-4 bg-emerald-50 rounded-xl">
+                                        <p className="text-sm text-emerald-600 font-medium">What it does:</p>
+                                        <p className="text-xs text-slate-500 mt-1">
+                                            Visual workflow builder for<br />
+                                            complex multi-step automation
+                                        </p>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <div className="flex items-center justify-between text-sm">
+                                            <span className="text-slate-600">Active Journeys</span>
+                                            <span className="font-bold text-slate-800">{journeyStats.active} running</span>
+                                        </div>
+                                        <div className="flex items-center justify-between text-sm">
+                                            <span className="text-slate-600">Contacts in Journeys</span>
+                                            <span className="font-bold text-slate-800">{journeyStats.contacts.toLocaleString()}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between text-sm">
+                                            <span className="text-slate-600">Emails Triggered</span>
+                                            <span className="font-bold text-slate-800">{journeyStats.emails.toLocaleString()}</span>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => router.push('/journeys')}
+                                        className="w-full py-2.5 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition-all"
+                                    >
+                                        Manage Journey Builder
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Quick Explanation */}
+                        <div className="bg-slate-50 rounded-2xl p-6 border border-slate-200">
+                            <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                                💡 Which Automation Should I Use?
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                                <div className="bg-white p-4 rounded-xl border border-blue-100">
+                                    <p className="font-bold text-blue-600 mb-2">📝 Content Autopilot</p>
+                                    <p className="text-slate-600">
+                                        Use when you want AI to <strong>create content</strong> for your blog, YouTube, Instagram, Facebook automatically.
+                                    </p>
+                                    <p className="mt-2 text-xs text-slate-400">→ Grows your audience</p>
+                                </div>
+                                <div className="bg-white p-4 rounded-xl border border-rose-100">
+                                    <p className="font-bold text-rose-600 mb-2">📧 Campaign Autopilot</p>
+                                    <p className="text-slate-600">
+                                        Use when you want AI to <strong>send emails/SMS</strong> to your CRM contacts based on triggers.
+                                    </p>
+                                    <p className="mt-2 text-xs text-slate-400">→ Nurtures your leads</p>
+                                </div>
+                                <div className="bg-white p-4 rounded-xl border border-emerald-100">
+                                    <p className="font-bold text-emerald-600 mb-2">🔄 Journey Builder</p>
+                                    <p className="text-slate-600">
+                                        Use when you need <strong>complex sequences</strong> with conditions, delays, and branching logic.
+                                    </p>
+                                    <p className="mt-2 text-xs text-slate-400">→ Custom workflows</p>
+                                </div>
+                            </div>
+                        </div>
+
                         {/* Risk Alerts */}
                         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                             <div className="p-6 border-b border-slate-200">
@@ -980,8 +1380,8 @@ function DashboardContent() {
                             </div>
                         </div>
 
-                        {/* Autopilot Controls */}
-                        <div className="relative bg-white rounded-2xl border border-slate-200 shadow-sm p-8 overflow-hidden">
+                        {/* Content Autopilot Controls */}
+                        <div id="content-autopilot-settings" className="relative bg-white rounded-2xl border border-slate-200 shadow-sm p-8 overflow-hidden">
                             {!canUseFeature(user?.plan, 'autopilot') && (
                                 <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-[2px] z-20 flex items-center justify-center p-6 text-center">
                                     <div className="bg-white rounded-2xl p-8 max-w-md shadow-2xl">
@@ -1000,12 +1400,12 @@ function DashboardContent() {
                                 </div>
                             )}
                             <div className="flex items-center gap-3 mb-8">
-                                <div className="p-3 bg-violet-100 text-violet-600 rounded-2xl">
-                                    <Bot className="w-6 h-6" />
+                                <div className="p-3 bg-blue-100 text-blue-600 rounded-2xl">
+                                    <FileText className="w-6 h-6" />
                                 </div>
                                 <div>
-                                    <h2 className="text-2xl font-black text-slate-800 tracking-tight">{t('aiAutopilot')}</h2>
-                                    <p className="text-slate-500">{t('decentralizedMarketing')}</p>
+                                    <h2 className="text-2xl font-black text-slate-800 tracking-tight">📝 Content Autopilot Settings</h2>
+                                    <p className="text-slate-500">Configure your AI content creation settings</p>
                                 </div>
                             </div>
                             <AutopilotPanel />
@@ -1034,6 +1434,39 @@ function DashboardContent() {
                             </div>
                         </div>
                     </div>
+                )}
+
+                {/* Automation Tab (War Room) */}
+                {activeTab === 'automation' && (
+                    <div className="space-y-6">
+                        <div className="bg-gradient-to-r from-orange-500 to-amber-500 rounded-2xl p-8 text-white shadow-lg shadow-orange-500/20">
+                            <h2 className="text-3xl font-bold mb-2 flex items-center gap-3">
+                                <Bot className="w-8 h-8" />
+                                AI War Room (ASI Core)
+                            </h2>
+                            <p className="text-white/90 text-lg">
+                                Collaborative Agent Swarm Intelligence. Debate, Strategy, and Execution.
+                            </p>
+                        </div>
+                        <AIAgentWarRoom />
+                    </div>
+                )}
+
+                {/* Knowledge Base Tab */}
+                {activeTab === 'knowledge' && (
+                    <div className="max-w-7xl mx-auto px-6 py-8">
+                        <KnowledgeBase />
+                    </div>
+                )}
+
+                {/* Leads Tab (CRM) */}
+                {activeTab === 'leads' && (
+                    <SocialCRMDashboard />
+                )}
+
+                {/* Localization Tab */}
+                {activeTab === 'localization' && (
+                    <CulturalLocalization />
                 )}
 
                 {/* Tools Tab */}
@@ -1176,6 +1609,13 @@ function DashboardContent() {
                     </div>
                 )}
 
+                {/* War Room Tab (ASI) */}
+                {activeTab === 'automation' && (
+                    <div className="bg-slate-50 rounded-2xl border border-slate-200 shadow-sm p-6 min-h-[600px]">
+                        <AIAgentWarRoom />
+                    </div>
+                )}
+
                 {/* Settings Tab */}
                 {activeTab === 'settings' && (
                     <div className="flex gap-6 min-h-[600px]">
@@ -1249,7 +1689,9 @@ function DashboardContent() {
                             {settingsTab === 'brand' && (
                                 <div className="bg-slate-900 rounded-2xl p-6 shadow-xl">
                                     <BrandProfileSettings
-                                        initialProfile={{
+                                        key={organizationId || 'default'}
+                                        organizationId={organizationId}
+                                        initialProfile={orgSettings || {
                                             brandName: campaign.name,
                                             industry: 'Technology / SaaS',
                                             websiteUrl: 'https://digitalmeng.com',
@@ -1259,6 +1701,7 @@ function DashboardContent() {
                                         onSave={(profile) => {
                                             console.log('Brand profile saved:', profile);
                                             setCampaign(prev => ({ ...prev, name: profile.brandName }));
+                                            setOrgSettings(profile);
                                         }}
                                         currentLanguage={currentLanguage}
                                     />

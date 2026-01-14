@@ -83,3 +83,31 @@ export async function POST(request: NextRequest) {
         );
     }
 }
+
+export async function PATCH(request: NextRequest) {
+    try {
+        const body = await request.json();
+        const { id, ...updates } = body;
+
+        if (!id) {
+            return NextResponse.json(
+                { error: 'Organization ID is required' },
+                { status: 400 }
+            );
+        }
+
+        // In production, check permissions
+
+        // We specifically want to allow updating the 'settings' field
+        // DB client handles merging partial updates
+        const organization = await db.updateOrganization(id, updates);
+
+        return NextResponse.json(organization);
+    } catch (error) {
+        console.error('Error updating organization:', error);
+        return NextResponse.json(
+            { error: 'Failed to update organization' },
+            { status: 500 }
+        );
+    }
+}

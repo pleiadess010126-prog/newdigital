@@ -27,6 +27,12 @@ export interface OrganizationSettings {
     defaultLanguage: string;
     emailNotifications: boolean;
     weeklyReports: boolean;
+    // New fields for autopilot personalization
+    location?: string;              // Business location (e.g., "New York, USA")
+    industry?: string;              // Industry type (e.g., "E-commerce", "SaaS")
+    brandColor?: string;            // Brand color for email templates (hex)
+    fromEmail?: string;             // Sender email address
+    fromPhone?: string;             // Sender phone/SMS number
 }
 
 export interface User {

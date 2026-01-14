@@ -169,3 +169,8 @@ export async function requireAdmin(): Promise<SessionUser> {
 
     return user;
 }
+
+/**
+ * Alias for getSession - backwards compatibility
+ */
+export const getServerSession = getSession;

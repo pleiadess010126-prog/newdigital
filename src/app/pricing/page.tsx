@@ -549,7 +549,7 @@ export default function PricingPage() {
                         <span className="font-semibold text-slate-800">DigitalMEng</span>
                     </div>
                     <p className="text-sm text-slate-500">
-                        © 2024 DigitalMEng. All rights reserved.
+                        © 2026 DigitalMEng. All rights reserved.
                     </p>
                 </div>
             </footer>

@@ -9,8 +9,6 @@ generator client {
 
 datasource db {
   provider = "mysql"
-  url      = env("DATABASE_URL")
-  relationMode = "prisma"
 }
 
 enum Plan {
@@ -178,6 +176,7 @@ model Organization {
   stripeSubscriptionId String? @unique
 
   // Organization Settings (stored as JSON for flexibility)
+  settings           Json?
   brandName          String?
   websiteUrl         String?
   logoUrl            String?
@@ -186,6 +185,12 @@ model Organization {
   defaultLanguage    String  @default("en")
   emailNotifications Boolean @default(true)
   weeklyReports      Boolean @default(true)
+  
+  // New Settings
+  location           String?
+  industry           String?
+  fromEmail          String?
+  fromPhone          String?
 
   // Trial Management
   trialStartDate DateTime?
@@ -211,6 +216,13 @@ model Organization {
   activityLogs        ActivityLog[]
   apiKeys             APIKey[]
   affiliates          Affiliate[]
+  
+  // Email Marketing Relations
+  contacts            Contact[]
+  emailCampaigns      EmailCampaign[]
+  emailTemplates      EmailTemplate[]
+  landingPages        LandingPage[]
+  forms               Form[]
 
   @@index([slug])
   @@index([ownerId])
@@ -291,7 +303,7 @@ model Campaign {
   websiteUrl       String?
   targetAudience   String?
   industry         String?
-  keywords         String[]
+  keywords         Json?      // Array stored as JSON for MySQL
   velocityMonth1   Int      @default(10)
   velocityMonth2   Int      @default(20)
   velocityMonth3   Int      @default(30)
@@ -303,8 +315,8 @@ model Campaign {
   requireApproval  Boolean  @default(true)
 
   // Scheduling Preferences
-  preferredDays    String[]
-  preferredTimes   String[]
+  preferredDays    Json?      // Array stored as JSON for MySQL
+  preferredTimes   Json?      // Array stored as JSON for MySQL
   scheduleTimezone String   @default("UTC")
 
   // Metrics (denormalized for performance)
@@ -347,9 +359,9 @@ model ContentItem {
   seoScore      Int      @default(0)
   wordCount     Int      @default(0)
   readingTime   Int      @default(0)
-  keywords      String[]
+  keywords      Json?      // Array stored as JSON for MySQL
   targetKeyword String?
-  hashtags      String[]
+  hashtags      Json?      // Array stored as JSON for MySQL
 
   // GEO (Generative Engine Optimization)
   geoScore            Int?
@@ -362,8 +374,8 @@ model ContentItem {
   geoSnippetOpt       Int?
   geoSemanticRichness Int?
   geoReadability      Int?
-  geoRecommendations  String[]
-  geoStrengths        String[]
+  geoRecommendations  Json?      // Array stored as JSON for MySQL
+  geoStrengths        Json?      // Array stored as JSON for MySQL
 
   // AI Generation Info
   aiModel          String?
@@ -435,7 +447,7 @@ model TopicPillar {
   campaignId     String
   name           String
   description    String?
-  keywords       String[]
+  keywords       Json?      // Array stored as JSON for MySQL
   contentCount   Int      @default(0)
   isActive       Boolean  @default(true)
 
@@ -695,7 +707,7 @@ model APIKey {
   name           String
   keyHash        String    @unique // Hashed key for security
   keyPrefix      String // First 8 chars for identification
-  permissions    String[] // e.g., ['content:read', 'content:write']
+  permissions    Json?      // Array stored as JSON for MySQL
   lastUsedAt     DateTime?
   expiresAt      DateTime?
   createdBy      String
@@ -789,6 +801,315 @@ model AffiliatePayout {
   @@index([affiliateId])
   @@index([status])
   @@map("affiliate_payouts")
+}
+
+// =============================================================================
+// EMAIL MARKETING (Salesforce-like features)
+// =============================================================================
+
+enum EmailCampaignStatus {
+  draft
+  scheduled
+  sending
+  sent
+  paused
+  cancelled
+}
+
+enum EmailDeliveryStatus {
+  pending
+  sent
+  delivered
+  opened
+  clicked
+  bounced
+  unsubscribed
+  spam
+}
+
+enum ContactStatus {
+  lead
+  mql
+  sql
+  opportunity
+  customer
+  churned
+}
+
+enum PageStatus {
+  draft
+  published
+  archived
+}
+
+enum FormAction {
+  thank_you
+  redirect
+  webhook
+}
+
+/// Contact - CRM contacts for email marketing
+model Contact {
+  id              String        @id @default(cuid())
+  organizationId  String
+  email           String
+  firstName       String?
+  lastName        String?
+  phone           String?
+  company         String?
+  jobTitle        String?
+  source          String?
+  status          ContactStatus @default(lead)
+  leadScore       Int           @default(0)
+  tags            Json?         // String array stored as JSON for MySQL
+  customFields    Json?
+  lastActivityAt  DateTime?
+  unsubscribedAt  DateTime?
+  
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  organization    Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  emailRecipients EmailRecipient[]
+  formSubmissions FormSubmission[]
+  activities      ContactActivity[]
+  
+  @@unique([organizationId, email])
+  @@index([organizationId])
+  @@index([email])
+  @@index([status])
+  @@index([leadScore])
+  @@map("contacts")
+}
+
+/// ContactActivity - Track all contact interactions
+model ContactActivity {
+  id          String   @id @default(cuid())
+  contactId   String
+  type        String   // email_opened, email_clicked, form_submitted, page_visited, etc.
+  description String
+  metadata    Json?
+  
+  createdAt   DateTime @default(now())
+  
+  contact     Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  
+  @@index([contactId])
+  @@index([type])
+  @@index([createdAt])
+  @@map("contact_activities")
+}
+
+/// EmailCampaign - Email marketing campaigns
+model EmailCampaign {
+  id              String              @id @default(cuid())
+  organizationId  String
+  name            String
+  subject         String
+  preheader       String?
+  content         String              @db.Text
+  htmlContent     String              @db.LongText
+  fromName        String?
+  fromEmail       String?
+  replyTo         String?
+  status          EmailCampaignStatus @default(draft)
+  scheduledAt     DateTime?
+  sentAt          DateTime?
+  
+  // A/B Testing
+  isABTest        Boolean             @default(false)
+  variantA        Json?               // Subject, content variant A
+  variantB        Json?               // Subject, content variant B
+  winningVariant  String?             // 'A' or 'B'
+  
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  
+  organization    Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  recipients      EmailRecipient[]
+  metrics         EmailMetric?
+  
+  @@index([organizationId])
+  @@index([status])
+  @@index([scheduledAt])
+  @@map("email_campaigns")
+}
+
+/// EmailTemplate - Reusable email templates
+model EmailTemplate {
+  id              String   @id @default(cuid())
+  organizationId  String
+  name            String
+  category        String   @default("general")
+  description     String?
+  thumbnail       String?
+  htmlContent     String   @db.LongText
+  jsonContent     String   @db.LongText  // For drag-drop editor (GrapesJS/MJML)
+  isGlobal        Boolean  @default(false)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  @@index([organizationId])
+  @@index([category])
+  @@map("email_templates")
+}
+
+/// EmailRecipient - Track individual email sends
+model EmailRecipient {
+  id              String              @id @default(cuid())
+  campaignId      String
+  contactId       String
+  email           String
+  status          EmailDeliveryStatus @default(pending)
+  sentAt          DateTime?
+  deliveredAt     DateTime?
+  openedAt        DateTime?
+  clickedAt       DateTime?
+  bouncedAt       DateTime?
+  unsubscribedAt  DateTime?
+  bounceReason    String?
+  clickedLinks    Json?               // Array of clicked URLs
+  openCount       Int                 @default(0)
+  clickCount      Int                 @default(0)
+  
+  createdAt       DateTime            @default(now())
+  
+  campaign        EmailCampaign       @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  contact         Contact             @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  
+  @@unique([campaignId, contactId])
+  @@index([campaignId])
+  @@index([contactId])
+  @@index([status])
+  @@map("email_recipients")
+}
+
+/// EmailMetric - Aggregated campaign metrics
+model EmailMetric {
+  id              String   @id @default(cuid())
+  campaignId      String   @unique
+  sent            Int      @default(0)
+  delivered       Int      @default(0)
+  opened          Int      @default(0)
+  uniqueOpened    Int      @default(0)
+  clicked         Int      @default(0)
+  uniqueClicked   Int      @default(0)
+  bounced         Int      @default(0)
+  unsubscribed    Int      @default(0)
+  spamReports     Int      @default(0)
+  
+  // Calculated rates (stored for performance)
+  openRate        Float    @default(0)
+  clickRate       Float    @default(0)
+  bounceRate      Float    @default(0)
+  unsubscribeRate Float    @default(0)
+  
+  updatedAt       DateTime @updatedAt
+  
+  campaign        EmailCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  
+  @@map("email_metrics")
+}
+
+/// LandingPage - Marketing landing pages
+model LandingPage {
+  id              String     @id @default(cuid())
+  organizationId  String
+  name            String
+  slug            String
+  status          PageStatus @default(draft)
+  jsonContent     String     @db.LongText  // GrapesJS format
+  htmlContent     String     @db.LongText
+  cssContent      String?    @db.Text
+  metaTitle       String?
+  metaDescription String?
+  ogImage         String?
+  publishedAt     DateTime?
+  
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  forms           Form[]
+  pageViews       PageView[]
+  
+  @@unique([organizationId, slug])
+  @@index([organizationId])
+  @@index([status])
+  @@map("landing_pages")
+}
+
+/// PageView - Landing page analytics
+model PageView {
+  id          String   @id @default(cuid())
+  pageId      String
+  visitorId   String
+  source      String?  // utm_source
+  medium      String?  // utm_medium
+  campaign    String?  // utm_campaign
+  referrer    String?
+  userAgent   String?
+  ipAddress   String?
+  
+  createdAt   DateTime @default(now())
+  
+  page        LandingPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  
+  @@index([pageId])
+  @@index([visitorId])
+  @@index([createdAt])
+  @@map("page_views")
+}
+
+/// Form - Lead capture forms
+model Form {
+  id              String     @id @default(cuid())
+  organizationId  String
+  landingPageId   String?
+  name            String
+  description     String?
+  fields          Json       // Array of form field definitions
+  submitAction    FormAction @default(thank_you)
+  redirectUrl     String?
+  thankYouMessage String?    @db.Text
+  notifyEmails    Json?      // Array of notification emails
+  webhookUrl      String?
+  isActive        Boolean    @default(true)
+  
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  
+  organization    Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  landingPage     LandingPage?    @relation(fields: [landingPageId], references: [id], onDelete: SetNull)
+  submissions     FormSubmission[]
+  
+  @@index([organizationId])
+  @@index([landingPageId])
+  @@map("forms")
+}
+
+/// FormSubmission - Captured form data
+model FormSubmission {
+  id          String   @id @default(cuid())
+  formId      String
+  contactId   String?
+  data        Json     // Submitted form data
+  source      String?
+  ipAddress   String?
+  userAgent   String?
+  
+  createdAt   DateTime @default(now())
+  
+  form        Form     @relation(fields: [formId], references: [id], onDelete: Cascade)
+  contact     Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  
+  @@index([formId])
+  @@index([contactId])
+  @@index([createdAt])
+  @@map("form_submissions")
 }
 
 // =============================================================================

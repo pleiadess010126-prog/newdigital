@@ -11,6 +11,7 @@ export interface SessionUser {
     email: string;
     name: string;
     organization: string;
+    organizationId?: string;  // Optional for backward compatibility
     plan: 'free' | 'starter' | 'pro' | 'enterprise';
     role: 'user' | 'admin' | 'superadmin';
     isAdmin: boolean;
@@ -93,3 +94,6 @@ export const clientSession = {
 };
 
 export type { SessionUser as User };
+
+// NOTE: For API routes and server components, import server functions directly from:
+// import { getSession, getServerSession, getCurrentUser } from '@/lib/auth/session.server';

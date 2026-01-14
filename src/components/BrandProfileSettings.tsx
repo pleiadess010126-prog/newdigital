@@ -88,6 +88,11 @@ interface BrandProfile {
     industry: string;
     websiteUrl: string;
 
+    // Sender Info (for Email/SMS campaigns)
+    fromEmail: string;
+    fromPhone: string;
+    businessLocation: string;
+
     // Target Audience - Enhanced
     targetAudience: string;
     audienceAge: string;
@@ -134,12 +139,14 @@ interface BrandProfileSettingsProps {
     initialProfile?: Partial<BrandProfile>;
     onSave?: (profile: BrandProfile) => void;
     currentLanguage?: string;
+    organizationId?: string;
 }
 
 export default function BrandProfileSettings({
     initialProfile,
     onSave,
-    currentLanguage = 'en'
+    currentLanguage = 'en',
+    organizationId
 }: BrandProfileSettingsProps) {
     const t = (key: string) => getTranslation(currentLanguage, key);
 
@@ -148,6 +155,10 @@ export default function BrandProfileSettings({
         tagline: initialProfile?.tagline || '',
         industry: initialProfile?.industry || '',
         websiteUrl: initialProfile?.websiteUrl || '',
+        // Sender Info
+        fromEmail: initialProfile?.fromEmail || '',
+        fromPhone: initialProfile?.fromPhone || '',
+        businessLocation: initialProfile?.businessLocation || '',
         targetAudience: initialProfile?.targetAudience || '',
         audienceAge: initialProfile?.audienceAge || '25-45',
         audienceLocation: initialProfile?.audienceLocation || 'Global',
@@ -219,13 +230,68 @@ export default function BrandProfileSettings({
     };
 
     const handleSave = async () => {
+        if (!organizationId) {
+            console.error('No organization ID provided');
+            return;
+        }
+
         setSaving(true);
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        onSave?.(profile);
-        setSaving(false);
-        setSaved(true);
-        setTimeout(() => setSaved(false), 3000);
+        try {
+            // Transform BrandProfile to OrganizationSettings structure
+            const settingsUpdate = {
+                brandName: profile.brandName,
+                websiteUrl: profile.websiteUrl,
+                logoUrl: profile.logoUrl,
+                primaryColor: profile.primaryColor,
+                industry: profile.industry,
+                // Map new fields
+                location: profile.businessLocation,
+                fromEmail: profile.fromEmail,
+                fromPhone: profile.fromPhone,
+                // Complex objects stored as JSON or dedicated fields if schema supports
+                // For now, we'll map what matches the schema directly and put the rest in a generic 'brandProfile' field or individual fields if we add them
+                // Ideally, we should update the schema to support all these fields or store them in a JSON column.
+                // For this implementation, we will assume we can pass them and the backend handles or ignores.
+                // But wait, the PATCH route uses `db.updateOrganization`.
+                // let's create a settings object with the fields we added to the schema AND all other fields
+                settings: {
+                    ...profile, // Save all profile fields to JSON
+                    brandName: profile.brandName,
+                    websiteUrl: profile.websiteUrl,
+                    logoUrl: profile.logoUrl,
+                    primaryColor: profile.primaryColor,
+                    industry: profile.industry,
+                    location: profile.businessLocation,
+                    fromEmail: profile.fromEmail,
+                    fromPhone: profile.fromPhone,
+                    brandColor: profile.primaryColor,
+                }
+            };
+
+            const response = await fetch('/api/organizations', {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    id: organizationId,
+                    settings: settingsUpdate.settings
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to save settings');
+            }
+
+            onSave?.(profile);
+            setSaved(true);
+        } catch (error) {
+            console.error('Error saving settings:', error);
+            alert('Failed to save settings. Please try again.');
+        } finally {
+            setSaving(false);
+            setTimeout(() => setSaved(false), 3000);
+        }
     };
 
     const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -366,6 +432,48 @@ export default function BrandProfileSettings({
                                 placeholder={t('websiteUrlPlaceholder')}
                                 className="input w-full"
                             />
+                        </div>
+                    </div>
+
+                    {/* Sender Information Section */}
+                    <div className="p-5 bg-gradient-to-br from-violet-500/10 to-fuchsia-500/10 rounded-xl border border-violet-500/20">
+                        <h4 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
+                            📧 Sender Information (for Email/SMS Campaigns)
+                        </h4>
+                        <p className="text-xs text-white/50 mb-4">
+                            This information is used when sending automated campaigns through Autopilot
+                        </p>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label className="block text-xs font-medium text-white/60 mb-1.5">From Email</label>
+                                <input
+                                    type="email"
+                                    value={profile.fromEmail}
+                                    onChange={(e) => updateField('fromEmail', e.target.value)}
+                                    placeholder="hello@yourbrand.com"
+                                    className="input w-full text-sm"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-white/60 mb-1.5">From Phone (SMS)</label>
+                                <input
+                                    type="tel"
+                                    value={profile.fromPhone}
+                                    onChange={(e) => updateField('fromPhone', e.target.value)}
+                                    placeholder="+1 (555) 123-4567"
+                                    className="input w-full text-sm"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-white/60 mb-1.5">📍 Business Location</label>
+                                <input
+                                    type="text"
+                                    value={profile.businessLocation}
+                                    onChange={(e) => updateField('businessLocation', e.target.value)}
+                                    placeholder="e.g., New York, USA"
+                                    className="input w-full text-sm"
+                                />
+                            </div>
                         </div>
                     </div>
                 </div>

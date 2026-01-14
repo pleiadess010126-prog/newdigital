@@ -39,6 +39,7 @@ function convertPrismaOrganization(org: any): Organization {
         stripeCustomerId: org.stripeCustomerId || undefined,
         stripeSubscriptionId: org.stripeSubscriptionId || undefined,
         settings: {
+            ...(typeof org.settings === 'object' && org.settings !== null ? org.settings : {}),
             brandName: org.brandName || org.name,
             websiteUrl: org.websiteUrl || undefined,
             logoUrl: org.logoUrl || undefined,
@@ -47,6 +48,10 @@ function convertPrismaOrganization(org: any): Organization {
             defaultLanguage: org.defaultLanguage,
             emailNotifications: org.emailNotifications,
             weeklyReports: org.weeklyReports,
+            location: org.location || undefined,
+            industry: org.industry || undefined,
+            fromEmail: org.fromEmail || undefined,
+            fromPhone: org.fromPhone || undefined,
         },
         createdAt: org.createdAt,
         updatedAt: org.updatedAt,
@@ -242,6 +247,10 @@ export class PrismaDatabase implements DatabaseClient {
                 defaultLanguage: org.settings.defaultLanguage,
                 emailNotifications: org.settings.emailNotifications,
                 weeklyReports: org.settings.weeklyReports,
+                location: org.settings.location,
+                industry: org.settings.industry,
+                fromEmail: org.settings.fromEmail,
+                fromPhone: org.settings.fromPhone,
             },
         });
         return convertPrismaOrganization(created);
@@ -275,11 +284,18 @@ export class PrismaDatabase implements DatabaseClient {
             if (updates.settings.defaultLanguage) data.defaultLanguage = updates.settings.defaultLanguage;
             if (updates.settings.emailNotifications !== undefined) data.emailNotifications = updates.settings.emailNotifications;
             if (updates.settings.weeklyReports !== undefined) data.weeklyReports = updates.settings.weeklyReports;
+            if (updates.settings.location !== undefined) data.location = updates.settings.location;
+            if (updates.settings.industry !== undefined) data.industry = updates.settings.industry;
+            if (updates.settings.fromEmail !== undefined) data.fromEmail = updates.settings.fromEmail;
+            if (updates.settings.fromPhone !== undefined) data.fromPhone = updates.settings.fromPhone;
         }
 
         const updated = await prisma.organization.update({
             where: { id },
-            data,
+            data: {
+                ...data,
+                settings: updates.settings !== undefined ? updates.settings : undefined,
+            },
         });
         return convertPrismaOrganization(updated);
     }

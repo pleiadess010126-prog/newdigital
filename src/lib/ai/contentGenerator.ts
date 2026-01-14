@@ -7,6 +7,7 @@ import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedroc
 import OpenAI from 'openai';
 import Anthropic from '@anthropic-ai/sdk';
 import { analyzeGEO, GEOBreakdown, GEOAnalysis } from './geoScoring';
+import { ragEngine } from './rag';
 
 export type AIProvider = 'bedrock' | 'openai' | 'anthropic' | 'mock';
 
@@ -59,6 +60,7 @@ export interface GenerateContentParams {
     language?: ContentLanguage;  // Primary language for content generation
     additionalLanguages?: ContentLanguage[];  // Auto-translate to these languages
     enableGEO?: boolean; // Enable Generative Engine Optimization
+    enableRAG?: boolean; // Enable Retrieval-Augmented Generation (Brand Vault)
 }
 
 export interface GeneratedContent {
@@ -143,7 +145,15 @@ export function getAvailableProvider(): AIProvider {
 async function generateWithBedrock(params: GenerateContentParams): Promise<GeneratedContent> {
     if (!bedrockClient) throw new Error('Bedrock client not initialized');
 
-    const prompt = buildPrompt(params);
+    if (!bedrockClient) throw new Error('Bedrock client not initialized');
+
+    let ragContext = '';
+    if (params.enableRAG) {
+        const retrievalResults = await ragEngine.retrieveContext(`${params.topic} ${params.keywords.join(' ')}`);
+        ragContext = ragEngine.formatContextForPrompt(retrievalResults);
+    }
+
+    const prompt = buildPrompt(params, ragContext);
 
     const command = new InvokeModelCommand({
         modelId: 'anthropic.claude-3-sonnet-20240229-v1:0',
@@ -172,7 +182,15 @@ async function generateWithBedrock(params: GenerateContentParams): Promise<Gener
 async function generateWithOpenAI(params: GenerateContentParams): Promise<GeneratedContent> {
     if (!openaiClient) throw new Error('OpenAI client not initialized');
 
-    const prompt = buildPrompt(params);
+    if (!openaiClient) throw new Error('OpenAI client not initialized');
+
+    let ragContext = '';
+    if (params.enableRAG) {
+        const retrievalResults = await ragEngine.retrieveContext(`${params.topic} ${params.keywords.join(' ')}`);
+        ragContext = ragEngine.formatContextForPrompt(retrievalResults);
+    }
+
+    const prompt = buildPrompt(params, ragContext);
 
     const response = await openaiClient.chat.completions.create({
         model: 'gpt-4-turbo-preview',
@@ -200,7 +218,15 @@ async function generateWithOpenAI(params: GenerateContentParams): Promise<Genera
 async function generateWithAnthropic(params: GenerateContentParams): Promise<GeneratedContent> {
     if (!anthropicClient) throw new Error('Anthropic client not initialized');
 
-    const prompt = buildPrompt(params);
+    if (!anthropicClient) throw new Error('Anthropic client not initialized');
+
+    let ragContext = '';
+    if (params.enableRAG) {
+        const retrievalResults = await ragEngine.retrieveContext(`${params.topic} ${params.keywords.join(' ')}`);
+        ragContext = ragEngine.formatContextForPrompt(retrievalResults);
+    }
+
+    const prompt = buildPrompt(params, ragContext);
 
     const response = await anthropicClient.messages.create({
         model: 'claude-3-sonnet-20240229',
@@ -276,7 +302,7 @@ function generateMockContent(params: GenerateContentParams): GeneratedContent {
     };
 }
 
-function buildPrompt(params: GenerateContentParams): string {
+function buildPrompt(params: GenerateContentParams, ragContext: string = ''): string {
     const { topic, keywords, contentType, targetAudience, tone = 'professional', length = 'medium', language = 'en' } = params;
 
     const contentSpecs = {
@@ -303,6 +329,8 @@ GEO (Generative Engine Optimization) REQUIREMENTS:
 ` : '';
 
     return `Create ${contentSpecs[contentType]} about "${topic}" for ${targetAudience}.${languageInstruction}
+
+${ragContext}
 
 REQUIREMENTS:
 - Tone: ${tone}

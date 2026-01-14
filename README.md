@@ -174,6 +174,7 @@ COGNITO_CLIENT_ID=your_client_id
 ## 📚 Documentation
 
 - [Phase 1 Complete Summary](PHASE1-COMPLETE.md)
+- [📘 User Manual (Guides for Manual & Autopilot Modes)](USER_MANUAL.md)
 - [Types Documentation](src/types/index.ts)
 - [Component Documentation](src/components/)
 
