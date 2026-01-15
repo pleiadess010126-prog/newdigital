@@ -16,6 +16,7 @@
     "db:reset": "prisma migrate reset",
     "admin:create": "node scripts/create-admin-quick.js",
     "admin:quick": "node scripts/create-admin-quick.js",
+    "support:create": "node scripts/create-support-user.js",
     "fix:errors": "node scripts/fix-all-errors.js",
     "postinstall": "prisma generate"
   },
@@ -32,6 +33,7 @@
     "@prisma/client": "7.2.0",
     "aws-amplify": "^6.15.9",
     "bcryptjs": "^3.0.3",
+    "framer-motion": "^12.26.2",
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^0.562.0",
     "next": "16.1.1",

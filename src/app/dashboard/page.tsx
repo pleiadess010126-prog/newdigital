@@ -289,7 +289,7 @@ function DashboardContent() {
         { id: 'overview' as TabType, label: t('overview'), icon: LayoutDashboard, color: 'bg-violet-600' },
         { id: 'content' as TabType, label: t('content'), icon: FileText, color: 'bg-blue-600' },
         { id: 'analytics' as TabType, label: t('analytics'), icon: BarChart3, color: 'bg-emerald-600' },
-        { id: 'automation' as TabType, label: 'War Room (ASI)', icon: Bot, color: 'bg-orange-600' },
+        { id: 'automation' as TabType, label: t('automation'), icon: Bot, color: 'bg-orange-600' },
         { id: 'knowledge' as TabType, label: 'Brand Vault', icon: Database, color: 'bg-indigo-600' },
         { id: 'leads' as TabType, label: t('leads'), icon: Target, color: 'bg-emerald-600' },
         { id: 'localization' as TabType, label: t('global'), icon: Globe, color: 'bg-emerald-600' },
@@ -1436,21 +1436,6 @@ function DashboardContent() {
                     </div>
                 )}
 
-                {/* Automation Tab (War Room) */}
-                {activeTab === 'automation' && (
-                    <div className="space-y-6">
-                        <div className="bg-gradient-to-r from-orange-500 to-amber-500 rounded-2xl p-8 text-white shadow-lg shadow-orange-500/20">
-                            <h2 className="text-3xl font-bold mb-2 flex items-center gap-3">
-                                <Bot className="w-8 h-8" />
-                                AI War Room (ASI Core)
-                            </h2>
-                            <p className="text-white/90 text-lg">
-                                Collaborative Agent Swarm Intelligence. Debate, Strategy, and Execution.
-                            </p>
-                        </div>
-                        <AIAgentWarRoom />
-                    </div>
-                )}
 
                 {/* Knowledge Base Tab */}
                 {activeTab === 'knowledge' && (

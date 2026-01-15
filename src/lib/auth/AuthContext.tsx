@@ -17,6 +17,7 @@ interface AuthContextType {
     refreshSession: () => Promise<void>;
     isAuthenticated: boolean;
     isAdmin: boolean;
+    updateCredits: (amount: number) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -124,6 +125,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 plan: isAdminUser ? 'enterprise' : 'free',
                 role: isAdminUser ? 'admin' : 'user',
                 isAdmin: isAdminUser,
+                credits: isAdminUser ? 10000 : 500, // Admin gets 10k, plebs get 500
                 createdAt: new Date(),
             };
             setUser(newUser);
@@ -205,6 +207,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             plan: 'free',
             role: 'user',
             isAdmin: false,
+            credits: 500,
             createdAt: new Date(),
         };
         setUser(newUser);
@@ -265,6 +268,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
     }, []);
 
+    const updateCredits = (amount: number) => {
+        if (!user) return;
+        const newCredits = Math.max(0, (user.credits || 0) + amount);
+        const updatedUser = { ...user, credits: newCredits };
+        setUser(updatedUser);
+        clientSession.setUser(updatedUser);
+    };
+
     return (
         <AuthContext.Provider
             value={{
@@ -274,6 +285,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 signup,
                 logout,
                 refreshSession,
+                updateCredits,
                 isAuthenticated: !!user,
                 isAdmin: user?.isAdmin || user?.role === 'admin' || user?.role === 'superadmin' || false,
             }}

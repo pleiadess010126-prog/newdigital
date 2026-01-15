@@ -94,6 +94,7 @@ DigitalMEng supports the following roles:
 | **superadmin** | Full system access, can manage all organizations |
 | **owner** | Full access to their organization |
 | **admin** | Manage users, campaigns, and content |
+| **support** | Access Support Dashboard, manage tickets |
 | **editor** | Create and edit content |
 | **viewer** | Read-only access |
 

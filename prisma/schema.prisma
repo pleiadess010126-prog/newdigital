@@ -8,7 +8,7 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "postgresql"
 }
 
 enum Plan {
@@ -25,6 +25,7 @@ enum UserRole {
   editor
   viewer
   superadmin
+  support
 }
 
 enum AuthProvider {
@@ -907,8 +908,8 @@ model EmailCampaign {
   name            String
   subject         String
   preheader       String?
-  content         String              @db.Text
-  htmlContent     String              @db.LongText
+  content         String
+  htmlContent     String
   fromName        String?
   fromEmail       String?
   replyTo         String?
@@ -943,8 +944,8 @@ model EmailTemplate {
   category        String   @default("general")
   description     String?
   thumbnail       String?
-  htmlContent     String   @db.LongText
-  jsonContent     String   @db.LongText  // For drag-drop editor (GrapesJS/MJML)
+  htmlContent     String
+  jsonContent     String  // For drag-drop editor (GrapesJS/MJML)
   isGlobal        Boolean  @default(false)
   
   createdAt       DateTime @default(now())
@@ -1021,9 +1022,9 @@ model LandingPage {
   name            String
   slug            String
   status          PageStatus @default(draft)
-  jsonContent     String     @db.LongText  // GrapesJS format
-  htmlContent     String     @db.LongText
-  cssContent      String?    @db.Text
+  jsonContent     String  // GrapesJS format
+  htmlContent     String
+  cssContent      String?
   metaTitle       String?
   metaDescription String?
   ogImage         String?
@@ -1074,7 +1075,7 @@ model Form {
   fields          Json       // Array of form field definitions
   submitAction    FormAction @default(thank_you)
   redirectUrl     String?
-  thankYouMessage String?    @db.Text
+  thankYouMessage String?
   notifyEmails    Json?      // Array of notification emails
   webhookUrl      String?
   isActive        Boolean    @default(true)
@@ -1132,3 +1133,130 @@ model Session {
   @@index([expiresAt])
   @@map("sessions")
 }
+
+// =============================================================================
+// HELPDESK & SUPPORT TICKET SYSTEM
+// =============================================================================
+
+enum TicketStatus {
+  open
+  in_progress
+  waiting_on_customer
+  waiting_on_support
+  resolved
+  closed
+}
+
+enum TicketPriority {
+  low
+  medium
+  high
+  critical
+}
+
+enum TicketCategory {
+  technical
+  billing
+  feature_request
+  bug_report
+  account
+  integration
+  content
+  general
+}
+
+/// SupportTicket - User support tickets managed by support team
+model SupportTicket {
+  id             String         @id @default(cuid())
+  ticketNumber   String         @unique // Human-readable ticket number like TKT-2026-0001
+  organizationId String?
+  userId         String
+  
+  // Ticket Details
+  subject        String
+  description    String
+  category       TicketCategory @default(general)
+  priority       TicketPriority @default(medium)
+  status         TicketStatus   @default(open)
+  
+  // Assignment
+  assignedToId   String?        // Support team member assigned
+  
+  // Source tracking
+  source         String         @default("user")  // user, nandu, email, api
+  nanduContext   Json?          // Context from Nandu conversation if escalated
+  
+  // Resolution
+  resolution     String?
+  resolvedAt     DateTime?
+  resolvedById   String?
+  
+  // Customer satisfaction
+  rating         Int?           // 1-5 star rating
+  feedback       String?
+  
+  // SLA tracking
+  firstResponseAt DateTime?
+  slaBreached    Boolean        @default(false)
+  
+  // Timestamps
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  closedAt       DateTime?
+  
+  // Relations
+  messages       TicketMessage[]
+  attachments    TicketAttachment[]
+  
+  @@index([ticketNumber])
+  @@index([userId])
+  @@index([organizationId])
+  @@index([status])
+  @@index([priority])
+  @@index([category])
+  @@index([assignedToId])
+  @@index([createdAt])
+  @@map("support_tickets")
+}
+
+/// TicketMessage - Conversation thread on a support ticket
+model TicketMessage {
+  id        String   @id @default(cuid())
+  ticketId  String
+  senderId  String   // User ID of sender (customer or support agent)
+  senderType String  @default("user") // user, support, system, nandu
+  
+  message   String
+  isInternal Boolean @default(false) // Internal notes not visible to customer
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  
+  // Relations
+  ticket    SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  
+  @@index([ticketId])
+  @@index([senderId])
+  @@index([createdAt])
+  @@map("ticket_messages")
+}
+
+/// TicketAttachment - Files attached to tickets
+model TicketAttachment {
+  id        String   @id @default(cuid())
+  ticketId  String
+  fileName  String
+  fileUrl   String
+  fileSize  Int
+  mimeType  String
+  uploadedBy String
+  
+  createdAt DateTime @default(now())
+  
+  // Relations
+  ticket    SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  
+  @@index([ticketId])
+  @@map("ticket_attachments")
+}
+

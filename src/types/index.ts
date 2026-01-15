@@ -150,7 +150,7 @@ export interface RiskAlert {
 export interface AIAgent {
   id: string;
   name: string;
-  type: 'supervisor' | 'seo-worker' | 'social-worker' | 'risk-worker' | 'video-worker' | 'analytics-worker' | 'geo-worker';
+  type: 'supervisor' | 'seo-worker' | 'social-worker' | 'risk-worker' | 'video-worker' | 'analytics-worker' | 'geo-worker' | 'chatbot-worker';
   status: 'idle' | 'working' | 'error';
   lastActive: Date;
   tasksCompleted: number;

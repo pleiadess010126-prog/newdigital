@@ -111,8 +111,44 @@ export default function AICopilot({ currentPage = 'dashboard', userPlan = 'free'
         setIsTyping(true);
         setShowQuickActions(false);
 
-        // Get the agent's planned response and steps
-        const response = await processAgentCommand(input, {
+        let response: AgentMessage;
+
+        try {
+            // Try the AI-powered Nandu API first
+            const apiMessages = messages.filter(m => m.role === 'user' || m.role === 'agent').map(m => ({
+                role: m.role === 'user' ? 'user' as const : 'assistant' as const,
+                content: m.content,
+            }));
+            apiMessages.push({ role: 'user' as const, content: input });
+
+            const apiResponse = await fetch('/api/nandu', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    messages: apiMessages,
+                    context: { currentPage, userPlan }
+                }),
+            });
+
+            if (apiResponse.ok) {
+                const data = await apiResponse.json();
+                response = {
+                    id: `msg_${Date.now()}`,
+                    role: 'agent',
+                    content: data.message,
+                    timestamp: new Date(),
+                };
+                // Show response directly without thought steps for API responses
+                setIsTyping(false);
+                setMessages(prev => [...prev, response]);
+                return;
+            }
+        } catch (error) {
+            console.log('Nandu API unavailable, using local processing:', error);
+        }
+
+        // Fallback to local keyword-based processing
+        response = await processAgentCommand(input, {
             currentPage,
             userPlan,
             usage: null,

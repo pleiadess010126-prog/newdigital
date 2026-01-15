@@ -24,7 +24,8 @@ import {
     Loader2,
     Award,
     MousePointerClick,
-    Target
+    Target,
+    Settings
 } from 'lucide-react';
 
 interface Affiliate {
@@ -294,8 +295,8 @@ export default function AdminAffiliatePanel() {
                 <button
                     onClick={() => setActiveTab('affiliates')}
                     className={`flex-1 px-4 py-2 rounded-lg font-medium transition-all flex items-center justify-center gap-2 ${activeTab === 'affiliates'
-                            ? 'bg-violet-600 text-white'
-                            : 'text-slate-600 hover:bg-slate-100'
+                        ? 'bg-violet-600 text-white'
+                        : 'text-slate-600 hover:bg-slate-100'
                         }`}
                 >
                     <Users className="w-4 h-4" />
@@ -309,8 +310,8 @@ export default function AdminAffiliatePanel() {
                 <button
                     onClick={() => setActiveTab('payouts')}
                     className={`flex-1 px-4 py-2 rounded-lg font-medium transition-all flex items-center justify-center gap-2 ${activeTab === 'payouts'
-                            ? 'bg-violet-600 text-white'
-                            : 'text-slate-600 hover:bg-slate-100'
+                        ? 'bg-violet-600 text-white'
+                        : 'text-slate-600 hover:bg-slate-100'
                         }`}
                 >
                     <CreditCard className="w-4 h-4" />
@@ -463,8 +464,36 @@ export default function AdminAffiliatePanel() {
             {/* Payouts Tab */}
             {activeTab === 'payouts' && (
                 <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-                    <div className="p-4 border-b border-slate-200">
+                    <div className="p-4 border-b border-slate-200 flex flex-wrap items-center justify-between gap-4">
                         <h3 className="font-semibold text-slate-800">Payout Requests</h3>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={async () => {
+                                    setIsProcessing(true);
+                                    await fetch('/api/admin/affiliates?action=auto-approve');
+                                    fetchData();
+                                    setIsProcessing(false);
+                                }}
+                                disabled={isProcessing}
+                                className="px-3 py-1.5 text-xs font-medium text-emerald-700 bg-emerald-100 hover:bg-emerald-200 rounded-lg flex items-center gap-1 transition-colors"
+                            >
+                                <CheckCircle className="w-3.5 h-3.5" />
+                                Auto-Approve Pending
+                            </button>
+                            <button
+                                onClick={async () => {
+                                    setIsProcessing(true);
+                                    await fetch('/api/admin/affiliates?action=process-scheduled');
+                                    fetchData();
+                                    setIsProcessing(false);
+                                }}
+                                disabled={isProcessing}
+                                className="px-3 py-1.5 text-xs font-medium text-violet-700 bg-violet-100 hover:bg-violet-200 rounded-lg flex items-center gap-1 transition-colors"
+                            >
+                                <Clock className="w-3.5 h-3.5" />
+                                Process Scheduled
+                            </button>
+                        </div>
                     </div>
                     <div className="overflow-x-auto">
                         <table className="w-full">
@@ -552,73 +581,180 @@ export default function AdminAffiliatePanel() {
                 </div>
             )}
 
-            {/* Edit Affiliate Modal */}
+            {/* Affiliate Details & Edit Modal */}
             {showEditModal && selectedAffiliate && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-xl w-full max-w-md p-6">
-                        <div className="flex items-center justify-between mb-6">
-                            <h3 className="text-lg font-bold text-slate-800">Edit Affiliate</h3>
+                    <div className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+                        {/* Header */}
+                        <div className="p-6 border-b border-slate-200 flex items-start justify-between">
+                            <div className="flex items-center gap-4">
+                                <div className="w-16 h-16 bg-violet-100 rounded-full flex items-center justify-center text-xl font-bold text-violet-600">
+                                    {selectedAffiliate.userName?.charAt(0) || 'U'}
+                                </div>
+                                <div>
+                                    <h3 className="text-xl font-bold text-slate-800">{selectedAffiliate.userName}</h3>
+                                    <div className="text-slate-500">{selectedAffiliate.userEmail}</div>
+                                    <div className="flex items-center gap-2 mt-2">
+                                        <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(selectedAffiliate.status)}`}>
+                                            {selectedAffiliate.status}
+                                        </span>
+                                        <div className="text-xs text-slate-400">
+                                            Joined {formatDate(selectedAffiliate.createdAt)}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                             <button onClick={() => setShowEditModal(false)} className="text-slate-400 hover:text-slate-600">
-                                <X className="w-5 h-5" />
+                                <X className="w-6 h-6" />
                             </button>
                         </div>
 
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Affiliate</label>
-                                <div className="p-3 bg-slate-50 rounded-lg">
-                                    <div className="font-medium">{selectedAffiliate.userName}</div>
-                                    <div className="text-sm text-slate-500">{selectedAffiliate.userEmail}</div>
+                        <div className="p-6 space-y-8">
+                            {/* Performance Stats */}
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
+                                    <div className="text-xs text-slate-500 mb-1">Clicks</div>
+                                    <div className="text-xl font-bold text-slate-800">{selectedAffiliate.stats.totalClicks.toLocaleString()}</div>
+                                </div>
+                                <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
+                                    <div className="text-xs text-slate-500 mb-1">Signups</div>
+                                    <div className="text-xl font-bold text-slate-800">{selectedAffiliate.stats.totalSignups}</div>
+                                </div>
+                                <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
+                                    <div className="text-xs text-slate-500 mb-1">Conversions</div>
+                                    <div className="text-xl font-bold text-slate-800">{selectedAffiliate.stats.paidConversions}</div>
+                                </div>
+                                <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
+                                    <div className="text-xs text-slate-500 mb-1">Conv. Rate</div>
+                                    <div className="text-xl font-bold text-slate-800">
+                                        {selectedAffiliate.stats.totalClicks > 0
+                                            ? ((selectedAffiliate.stats.paidConversions / selectedAffiliate.stats.totalClicks) * 100).toFixed(1)
+                                            : '0.0'}%
+                                    </div>
                                 </div>
                             </div>
 
-                            <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Tier</label>
-                                <select
-                                    defaultValue={selectedAffiliate.tier}
-                                    id="edit-tier"
-                                    className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500"
-                                >
-                                    <option value="bronze">Bronze (10%)</option>
-                                    <option value="silver">Silver (12%)</option>
-                                    <option value="gold">Gold (15%)</option>
-                                    <option value="platinum">Platinum (18%)</option>
-                                    <option value="diamond">Diamond (20%)</option>
-                                </select>
+                            {/* Financials & Tier */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {/* Financials */}
+                                <div className="space-y-4">
+                                    <h4 className="font-semibold text-slate-800 flex items-center gap-2">
+                                        <DollarSign className="w-4 h-4" /> Financials
+                                    </h4>
+                                    <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-100">
+                                        <div className="flex justify-between items-end mb-2">
+                                            <div className="text-sm text-emerald-800">Total Earnings</div>
+                                            <div className="text-2xl font-bold text-emerald-700">{formatCurrency(selectedAffiliate.stats.totalEarnings)}</div>
+                                        </div>
+                                        <div className="w-full h-2 bg-emerald-200 rounded-full overflow-hidden">
+                                            <div className="h-full bg-emerald-500 rounded-full" style={{ width: '100%' }}></div>
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="p-3 bg-white border border-slate-200 rounded-lg">
+                                            <div className="text-xs text-slate-500">Pending</div>
+                                            <div className="font-bold text-amber-600">{formatCurrency(selectedAffiliate.stats.pendingEarnings)}</div>
+                                        </div>
+                                        <div className="p-3 bg-white border border-slate-200 rounded-lg">
+                                            <div className="text-xs text-slate-500">Paid</div>
+                                            <div className="font-bold text-slate-700">{formatCurrency(selectedAffiliate.stats.paidEarnings)}</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Current Tier Info */}
+                                <div className="space-y-4">
+                                    <h4 className="font-semibold text-slate-800 flex items-center gap-2">
+                                        <Award className="w-4 h-4" /> Current Tier
+                                    </h4>
+                                    <div className={`p-4 rounded-xl border ${getTierColor(selectedAffiliate.tier).bg} border-opacity-50`}>
+                                        <div className="flex items-center justify-between mb-4">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-2xl">{getTierColor(selectedAffiliate.tier).icon}</span>
+                                                <div>
+                                                    <div className="font-bold capitalize">{selectedAffiliate.tier}</div>
+                                                    <div className="text-xs opacity-75">{selectedAffiliate.commissionRate}% Commission</div>
+                                                </div>
+                                            </div>
+                                            <div className="text-xs font-mono bg-white/50 px-2 py-1 rounded">
+                                                {selectedAffiliate.referralCode}
+                                            </div>
+                                        </div>
+
+                                        {/* Tier Progress (Mock - would need real next tier data) */}
+                                        <div className="space-y-2">
+                                            <div className="flex justify-between text-xs opacity-75">
+                                                <span>Progress to next tier</span>
+                                                <span>75%</span>
+                                            </div>
+                                            <div className="w-full h-1.5 bg-black/10 rounded-full overflow-hidden">
+                                                <div className="h-full bg-black/30 rounded-full" style={{ width: '75%' }}></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
 
-                            <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Status</label>
-                                <select
-                                    defaultValue={selectedAffiliate.status}
-                                    id="edit-status"
-                                    className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500"
-                                >
-                                    <option value="active">Active</option>
-                                    <option value="pending">Pending</option>
-                                    <option value="suspended">Suspended</option>
-                                </select>
+                            {/* Edit Controls */}
+                            <div className="pt-6 border-t border-slate-200">
+                                <h4 className="font-semibold text-slate-800 mb-4 flex items-center gap-2">
+                                    <Settings className="w-4 h-4" /> Settings
+                                </h4>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-1">Tier Override</label>
+                                        <select
+                                            defaultValue={selectedAffiliate.tier}
+                                            id="edit-tier"
+                                            className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                        >
+                                            <option value="bronze">Bronze (10%)</option>
+                                            <option value="silver">Silver (12%)</option>
+                                            <option value="gold">Gold (15%)</option>
+                                            <option value="platinum">Platinum (18%)</option>
+                                            <option value="diamond">Diamond (20%)</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-1">Account Status</label>
+                                        <select
+                                            defaultValue={selectedAffiliate.status}
+                                            id="edit-status"
+                                            className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                                        >
+                                            <option value="active">Active</option>
+                                            <option value="pending">Pending</option>
+                                            <option value="suspended">Suspended</option>
+                                        </select>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
-                        <div className="flex gap-3 mt-6">
-                            <button
-                                onClick={() => setShowEditModal(false)}
-                                className="flex-1 px-4 py-2 border border-slate-200 rounded-lg font-medium text-slate-700 hover:bg-slate-50"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={() => {
-                                    const tier = (document.getElementById('edit-tier') as HTMLSelectElement).value;
-                                    const status = (document.getElementById('edit-status') as HTMLSelectElement).value;
-                                    handleUpdateAffiliate(selectedAffiliate.id, { tier: tier as any, status: status as any });
-                                }}
-                                disabled={isProcessing}
-                                className="flex-1 px-4 py-2 bg-violet-600 text-white rounded-lg font-medium hover:bg-violet-500 disabled:opacity-50 flex items-center justify-center gap-2"
-                            >
-                                {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save Changes'}
-                            </button>
+                        {/* Footer */}
+                        <div className="p-6 border-t border-slate-200 bg-slate-50 rounded-b-xl flex justify-between items-center">
+                            <div className="text-xs text-slate-400">
+                                ID: {selectedAffiliate.id}
+                            </div>
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => setShowEditModal(false)}
+                                    className="px-4 py-2 border border-slate-200 rounded-lg font-medium text-slate-700 hover:bg-white"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        const tier = (document.getElementById('edit-tier') as HTMLSelectElement).value;
+                                        const status = (document.getElementById('edit-status') as HTMLSelectElement).value;
+                                        handleUpdateAffiliate(selectedAffiliate.id, { tier: tier as any, status: status as any });
+                                    }}
+                                    disabled={isProcessing}
+                                    className="px-6 py-2 bg-violet-600 text-white rounded-lg font-medium hover:bg-violet-500 disabled:opacity-50 flex items-center gap-2"
+                                >
+                                    {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save Changes'}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

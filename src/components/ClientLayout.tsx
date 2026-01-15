@@ -24,8 +24,8 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
         return 'home';
     };
 
-    // Only show copilot on authenticated pages
-    const showCopilot = isAuthenticated && !pathname.includes('login') && !pathname.includes('signup') && pathname !== '/';
+    // Show Nandu copilot on ALL pages (except login/signup to avoid interference)
+    const showCopilot = !pathname.includes('login') && !pathname.includes('signup');
 
     const handleAgentAction = (type: string, data?: any) => {
         console.log('Agent Action Executing:', type, data);

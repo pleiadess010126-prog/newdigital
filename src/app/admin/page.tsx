@@ -45,8 +45,10 @@ import {
     Home,
     Loader2,
     Gift,
+    Brain
 } from 'lucide-react';
 import AdminAffiliatePanel from '@/components/AdminAffiliatePanel';
+import ASINeuralCore from '@/components/ASINeuralCore';
 
 // API Test Status types
 type TestStatus = 'idle' | 'testing' | 'success' | 'error';
@@ -95,7 +97,17 @@ const mockApiUsage = [
     { provider: 'Stability AI', calls: 28934, cost: 890.45, status: 'healthy' },
 ];
 
-type AdminTab = 'overview' | 'users' | 'billing' | 'analytics' | 'affiliates' | 'system' | 'settings';
+// Mock Staff Data (Internal DigitalMEng Team)
+const mockStaff = [
+    { id: 101, name: 'Priya Admin', email: 'admin@digitalmeng.com', role: 'superadmin', department: 'Management', status: 'active', joined: '2024-01-15', lastActive: '2026-01-15' },
+    { id: 102, name: 'Support Team Lead', email: 'support@digitalmeng.com', role: 'support', department: 'Support', status: 'active', joined: '2024-03-01', lastActive: '2026-01-15' },
+    { id: 103, name: 'John Developer', email: 'john.dev@digitalmeng.com', role: 'admin', department: 'Engineering', status: 'active', joined: '2024-02-10', lastActive: '2026-01-14' },
+    { id: 104, name: 'Sarah Support', email: 'sarah.support@digitalmeng.com', role: 'support', department: 'Support', status: 'active', joined: '2024-06-20', lastActive: '2026-01-15' },
+    { id: 105, name: 'Mike Moderator', email: 'mike.mod@digitalmeng.com', role: 'editor', department: 'Content', status: 'active', joined: '2024-08-15', lastActive: '2026-01-13' },
+    { id: 106, name: 'Lisa Analytics', email: 'lisa@digitalmeng.com', role: 'viewer', department: 'Analytics', status: 'inactive', joined: '2024-05-01', lastActive: '2025-12-20' },
+];
+
+type AdminTab = 'overview' | 'customers' | 'staff' | 'billing' | 'analytics' | 'affiliates' | 'system' | 'settings' | 'asi';
 
 export default function AdminPage() {
     const router = useRouter();
@@ -103,7 +115,38 @@ export default function AdminPage() {
     const [activeTab, setActiveTab] = useState<AdminTab>('overview');
     const [searchQuery, setSearchQuery] = useState('');
     const [userFilter, setUserFilter] = useState('all');
+    const [staffFilter, setStaffFilter] = useState('all');
     const [selectedUsers, setSelectedUsers] = useState<number[]>([]);
+
+    // Customer Management Modal States
+    const [showAddUserModal, setShowAddUserModal] = useState(false);
+    const [showViewUserModal, setShowViewUserModal] = useState(false);
+    const [showEditUserModal, setShowEditUserModal] = useState(false);
+    const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
+    const [selectedUserForAction, setSelectedUserForAction] = useState<typeof mockUsers[0] | null>(null);
+    const [usersList, setUsersList] = useState(mockUsers);
+    const [userFormData, setUserFormData] = useState({
+        name: '',
+        email: '',
+        plan: 'free',
+        status: 'active',
+        role: 'viewer',
+    });
+
+    // Staff Management Modal States
+    const [showAddStaffModal, setShowAddStaffModal] = useState(false);
+    const [showViewStaffModal, setShowViewStaffModal] = useState(false);
+    const [showEditStaffModal, setShowEditStaffModal] = useState(false);
+    const [showDeleteStaffModal, setShowDeleteStaffModal] = useState(false);
+    const [selectedStaffForAction, setSelectedStaffForAction] = useState<typeof mockStaff[0] | null>(null);
+    const [staffList, setStaffList] = useState(mockStaff);
+    const [staffFormData, setStaffFormData] = useState({
+        name: '',
+        email: '',
+        role: 'viewer',
+        department: 'Support',
+        status: 'active',
+    });
 
     // API Key States
     const [apiKeys, setApiKeys] = useState({
@@ -417,7 +460,9 @@ export default function AdminPage() {
 
     const tabs = [
         { id: 'overview' as AdminTab, label: 'Overview', icon: BarChart3 },
-        { id: 'users' as AdminTab, label: 'Users', icon: Users },
+        { id: 'asi' as AdminTab, label: 'ASI Core', icon: Brain },
+        { id: 'customers' as AdminTab, label: 'Customers', icon: Users },
+        { id: 'staff' as AdminTab, label: 'Staff', icon: Shield },
         { id: 'billing' as AdminTab, label: 'Billing', icon: CreditCard },
         { id: 'analytics' as AdminTab, label: 'Analytics', icon: TrendingUp },
         { id: 'affiliates' as AdminTab, label: 'Affiliates', icon: Gift },
@@ -425,10 +470,184 @@ export default function AdminPage() {
         { id: 'settings' as AdminTab, label: 'Settings', icon: Settings },
     ];
 
-    const filteredUsers = mockUsers.filter(u => {
+    // User Management Handlers
+    const handleViewUser = (u: typeof mockUsers[0]) => {
+        setSelectedUserForAction(u);
+        setShowViewUserModal(true);
+    };
+
+    const handleEditUser = (u: typeof mockUsers[0]) => {
+        setSelectedUserForAction(u);
+        setUserFormData({
+            name: u.name,
+            email: u.email,
+            plan: u.plan,
+            status: u.status,
+            role: 'viewer',
+        });
+        setShowEditUserModal(true);
+    };
+
+    const handleDeleteUser = (u: typeof mockUsers[0]) => {
+        setSelectedUserForAction(u);
+        setShowDeleteConfirmModal(true);
+    };
+
+    const handleAddUser = () => {
+        setUserFormData({
+            name: '',
+            email: '',
+            plan: 'free',
+            status: 'active',
+            role: 'viewer',
+        });
+        setShowAddUserModal(true);
+    };
+
+    const handleSaveNewUser = () => {
+        if (!userFormData.name || !userFormData.email) {
+            showToast('Please fill in all required fields', 'error');
+            return;
+        }
+
+        const newUser = {
+            id: Math.max(...usersList.map(u => u.id)) + 1,
+            name: userFormData.name,
+            email: userFormData.email,
+            plan: userFormData.plan as 'free' | 'starter' | 'pro' | 'enterprise',
+            status: userFormData.status as 'active' | 'suspended',
+            joined: new Date().toISOString().split('T')[0],
+            revenue: 0,
+            contentCount: 0,
+        };
+
+        setUsersList([newUser, ...usersList]);
+        setShowAddUserModal(false);
+        showToast(`User "${newUser.name}" created successfully!`, 'success');
+    };
+
+    const handleSaveEditUser = () => {
+        if (!selectedUserForAction) return;
+
+        setUsersList(usersList.map(u =>
+            u.id === selectedUserForAction.id
+                ? {
+                    ...u,
+                    name: userFormData.name,
+                    email: userFormData.email,
+                    plan: userFormData.plan as typeof u.plan,
+                    status: userFormData.status as typeof u.status,
+                }
+                : u
+        ));
+
+        setShowEditUserModal(false);
+        showToast(`User "${userFormData.name}" updated successfully!`, 'success');
+    };
+
+    const handleConfirmDelete = () => {
+        if (!selectedUserForAction) return;
+
+        setUsersList(usersList.filter(u => u.id !== selectedUserForAction.id));
+        setShowDeleteConfirmModal(false);
+        showToast(`Customer "${selectedUserForAction.name}" removed successfully!`, 'success');
+    };
+
+    // Staff Management Handlers
+    const handleViewStaff = (s: typeof mockStaff[0]) => {
+        setSelectedStaffForAction(s);
+        setShowViewStaffModal(true);
+    };
+
+    const handleEditStaff = (s: typeof mockStaff[0]) => {
+        setSelectedStaffForAction(s);
+        setStaffFormData({
+            name: s.name,
+            email: s.email,
+            role: s.role,
+            department: s.department,
+            status: s.status,
+        });
+        setShowEditStaffModal(true);
+    };
+
+    const handleDeleteStaff = (s: typeof mockStaff[0]) => {
+        setSelectedStaffForAction(s);
+        setShowDeleteStaffModal(true);
+    };
+
+    const handleAddStaff = () => {
+        setStaffFormData({
+            name: '',
+            email: '',
+            role: 'support',
+            department: 'Support',
+            status: 'active',
+        });
+        setShowAddStaffModal(true);
+    };
+
+    const handleSaveNewStaff = () => {
+        if (!staffFormData.name || !staffFormData.email) {
+            showToast('Please fill in all required fields', 'error');
+            return;
+        }
+
+        const newStaff = {
+            id: Math.max(...staffList.map(s => s.id)) + 1,
+            name: staffFormData.name,
+            email: staffFormData.email,
+            role: staffFormData.role as typeof mockStaff[0]['role'],
+            department: staffFormData.department,
+            status: staffFormData.status as 'active' | 'inactive',
+            joined: new Date().toISOString().split('T')[0],
+            lastActive: new Date().toISOString().split('T')[0],
+        };
+
+        setStaffList([newStaff, ...staffList]);
+        setShowAddStaffModal(false);
+        showToast(`Staff member "${newStaff.name}" added successfully!`, 'success');
+    };
+
+    const handleSaveEditStaff = () => {
+        if (!selectedStaffForAction) return;
+
+        setStaffList(staffList.map(s =>
+            s.id === selectedStaffForAction.id
+                ? {
+                    ...s,
+                    name: staffFormData.name,
+                    email: staffFormData.email,
+                    role: staffFormData.role as typeof s.role,
+                    department: staffFormData.department,
+                    status: staffFormData.status as typeof s.status,
+                }
+                : s
+        ));
+
+        setShowEditStaffModal(false);
+        showToast(`Staff member "${staffFormData.name}" updated successfully!`, 'success');
+    };
+
+    const handleConfirmDeleteStaff = () => {
+        if (!selectedStaffForAction) return;
+
+        setStaffList(staffList.filter(s => s.id !== selectedStaffForAction.id));
+        setShowDeleteStaffModal(false);
+        showToast(`Staff member "${selectedStaffForAction.name}" removed successfully!`, 'success');
+    };
+
+    const filteredUsers = usersList.filter(u => {
         const matchesSearch = u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
             u.email.toLowerCase().includes(searchQuery.toLowerCase());
         const matchesFilter = userFilter === 'all' || u.plan === userFilter || u.status === userFilter;
+        return matchesSearch && matchesFilter;
+    });
+
+    const filteredStaff = staffList.filter(s => {
+        const matchesSearch = s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            s.email.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesFilter = staffFilter === 'all' || s.role === staffFilter || s.department === staffFilter || s.status === staffFilter;
         return matchesSearch && matchesFilter;
     });
 
@@ -659,23 +878,33 @@ export default function AdminPage() {
                         </div>
                     )}
 
-                    {/* Users Tab */}
-                    {activeTab === 'users' && (
+                    {/* ASI Core Tab */}
+                    {activeTab === 'asi' && (
+                        <div className="h-full">
+                            <ASINeuralCore stats={mockStats} />
+                        </div>
+                    )}
+
+                    {/* Customers Tab - External Subscribers */}
+                    {activeTab === 'customers' && (
                         <div className="space-y-6">
-                            {/* User Management Header */}
+                            {/* Customer Management Header */}
                             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                                 <div>
-                                    <h2 className="text-2xl font-bold text-white">User Management</h2>
-                                    <p className="text-slate-400">Manage all users and their subscriptions</p>
+                                    <h2 className="text-2xl font-bold text-white">Customer Management</h2>
+                                    <p className="text-slate-400">Manage all subscribers and their subscription plans</p>
                                 </div>
                                 <div className="flex gap-3">
                                     <button className="flex items-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors">
                                         <Download className="w-4 h-4" />
                                         Export
                                     </button>
-                                    <button className="flex items-center gap-2 px-4 py-2 bg-violet-500 hover:bg-violet-600 text-white rounded-lg transition-colors">
+                                    <button
+                                        onClick={handleAddUser}
+                                        className="flex items-center gap-2 px-4 py-2 bg-violet-500 hover:bg-violet-600 text-white rounded-lg transition-colors"
+                                    >
                                         <UserPlus className="w-4 h-4" />
-                                        Add User
+                                        Add Customer
                                     </button>
                                 </div>
                             </div>
@@ -790,13 +1019,25 @@ export default function AdminPage() {
                                                 </td>
                                                 <td className="px-6 py-4 text-right">
                                                     <div className="flex items-center justify-end gap-2">
-                                                        <button className="p-2 hover:bg-slate-600 rounded-lg transition-colors">
+                                                        <button
+                                                            onClick={() => handleViewUser(user)}
+                                                            className="p-2 hover:bg-slate-600 rounded-lg transition-colors"
+                                                            title="View user"
+                                                        >
                                                             <Eye className="w-4 h-4 text-slate-400" />
                                                         </button>
-                                                        <button className="p-2 hover:bg-slate-600 rounded-lg transition-colors">
+                                                        <button
+                                                            onClick={() => handleEditUser(user)}
+                                                            className="p-2 hover:bg-slate-600 rounded-lg transition-colors"
+                                                            title="Edit user"
+                                                        >
                                                             <Edit className="w-4 h-4 text-slate-400" />
                                                         </button>
-                                                        <button className="p-2 hover:bg-red-500/20 rounded-lg transition-colors">
+                                                        <button
+                                                            onClick={() => handleDeleteUser(user)}
+                                                            className="p-2 hover:bg-red-500/20 rounded-lg transition-colors"
+                                                            title="Delete user"
+                                                        >
                                                             <Trash2 className="w-4 h-4 text-red-400" />
                                                         </button>
                                                     </div>
@@ -810,7 +1051,7 @@ export default function AdminPage() {
                             {/* Pagination */}
                             <div className="flex items-center justify-between">
                                 <p className="text-sm text-slate-400">
-                                    Showing {filteredUsers.length} of {mockUsers.length} users
+                                    Showing {filteredUsers.length} of {usersList.length} customers
                                 </p>
                                 <div className="flex gap-2">
                                     <button className="px-3 py-2 bg-slate-700 text-white rounded-lg text-sm">Previous</button>
@@ -819,6 +1060,153 @@ export default function AdminPage() {
                                     <button className="px-3 py-2 bg-slate-700 text-white rounded-lg text-sm">3</button>
                                     <button className="px-3 py-2 bg-slate-700 text-white rounded-lg text-sm">Next</button>
                                 </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Staff Tab - Internal DigitalMEng Team */}
+                    {activeTab === 'staff' && (
+                        <div className="space-y-6">
+                            {/* Staff Management Header */}
+                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                <div>
+                                    <h2 className="text-2xl font-bold text-white">Staff Management</h2>
+                                    <p className="text-slate-400">Manage internal DigitalMEng team members</p>
+                                </div>
+                                <div className="flex gap-3">
+                                    <button className="flex items-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors">
+                                        <Download className="w-4 h-4" />
+                                        Export
+                                    </button>
+                                    <button
+                                        onClick={handleAddStaff}
+                                        className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition-colors"
+                                    >
+                                        <UserPlus className="w-4 h-4" />
+                                        Add Staff Member
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Search and Filters */}
+                            <div className="flex flex-col md:flex-row gap-4">
+                                <div className="flex-1 relative">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                                    <input
+                                        type="text"
+                                        placeholder="Search staff..."
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        className="w-full pl-10 pr-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:border-emerald-500"
+                                    />
+                                </div>
+                                <select
+                                    value={staffFilter}
+                                    onChange={(e) => setStaffFilter(e.target.value)}
+                                    className="px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-emerald-500"
+                                >
+                                    <option value="all">All Staff</option>
+                                    <option value="superadmin">Superadmin</option>
+                                    <option value="admin">Admin</option>
+                                    <option value="support">Support</option>
+                                    <option value="editor">Editor</option>
+                                    <option value="viewer">Viewer</option>
+                                    <option value="active">Active</option>
+                                    <option value="inactive">Inactive</option>
+                                </select>
+                            </div>
+
+                            {/* Staff Table */}
+                            <div className="bg-slate-800 border border-slate-700 rounded-2xl overflow-hidden">
+                                <table className="w-full">
+                                    <thead>
+                                        <tr className="border-b border-slate-700">
+                                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-400 uppercase">Staff Member</th>
+                                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-400 uppercase">Role</th>
+                                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-400 uppercase">Department</th>
+                                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-400 uppercase">Status</th>
+                                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-400 uppercase">Joined</th>
+                                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-400 uppercase">Last Active</th>
+                                            <th className="px-6 py-4 text-right text-xs font-semibold text-slate-400 uppercase">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {filteredStaff.map((staff) => (
+                                            <tr key={staff.id} className="border-b border-slate-700/50 hover:bg-slate-700/30">
+                                                <td className="px-6 py-4">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-full flex items-center justify-center text-white font-bold">
+                                                            {staff.name.charAt(0)}
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-sm font-medium text-white">{staff.name}</p>
+                                                            <p className="text-xs text-slate-400">{staff.email}</p>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${staff.role === 'superadmin' ? 'bg-amber-500/20 text-amber-400' :
+                                                        staff.role === 'admin' ? 'bg-purple-500/20 text-purple-400' :
+                                                            staff.role === 'support' ? 'bg-emerald-500/20 text-emerald-400' :
+                                                                staff.role === 'editor' ? 'bg-blue-500/20 text-blue-400' :
+                                                                    'bg-slate-500/20 text-slate-400'
+                                                        }`}>
+                                                        {staff.role.charAt(0).toUpperCase() + staff.role.slice(1)}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <span className="text-sm text-white">{staff.department}</span>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <span className={`flex items-center gap-1 text-sm ${staff.status === 'active' ? 'text-emerald-400' : 'text-slate-400'
+                                                        }`}>
+                                                        <span className={`w-2 h-2 rounded-full ${staff.status === 'active' ? 'bg-emerald-500' : 'bg-slate-500'
+                                                            }`}></span>
+                                                        {staff.status.charAt(0).toUpperCase() + staff.status.slice(1)}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <span className="text-sm text-slate-400">{staff.joined}</span>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <span className="text-sm text-slate-400">{staff.lastActive}</span>
+                                                </td>
+                                                <td className="px-6 py-4 text-right">
+                                                    <div className="flex items-center justify-end gap-2">
+                                                        <button
+                                                            onClick={() => handleViewStaff(staff)}
+                                                            className="p-2 hover:bg-slate-600 rounded-lg transition-colors"
+                                                            title="View staff"
+                                                        >
+                                                            <Eye className="w-4 h-4 text-slate-400" />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleEditStaff(staff)}
+                                                            className="p-2 hover:bg-slate-600 rounded-lg transition-colors"
+                                                            title="Edit staff"
+                                                        >
+                                                            <Edit className="w-4 h-4 text-slate-400" />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDeleteStaff(staff)}
+                                                            className="p-2 hover:bg-red-500/20 rounded-lg transition-colors"
+                                                            title="Delete staff"
+                                                        >
+                                                            <Trash2 className="w-4 h-4 text-red-400" />
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            {/* Pagination */}
+                            <div className="flex items-center justify-between">
+                                <p className="text-sm text-slate-400">
+                                    Showing {filteredStaff.length} of {staffList.length} staff members
+                                </p>
                             </div>
                         </div>
                     )}
@@ -2236,6 +2624,547 @@ export default function AdminPage() {
                     )}
                 </main>
             </div>
+
+            {/* Add User Modal */}
+            {showAddUserModal && (
+                <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+                    <div className="bg-slate-800 rounded-2xl border border-slate-700 w-full max-w-md">
+                        <div className="p-6 border-b border-slate-700">
+                            <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                                <UserPlus className="w-5 h-5 text-violet-400" />
+                                Add New User
+                            </h3>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-slate-300 mb-2">Full Name *</label>
+                                <input
+                                    type="text"
+                                    value={userFormData.name}
+                                    onChange={(e) => setUserFormData({ ...userFormData, name: e.target.value })}
+                                    placeholder="Enter full name"
+                                    className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:border-violet-500"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-300 mb-2">Email Address *</label>
+                                <input
+                                    type="email"
+                                    value={userFormData.email}
+                                    onChange={(e) => setUserFormData({ ...userFormData, email: e.target.value })}
+                                    placeholder="Enter email address"
+                                    className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:border-violet-500"
+                                />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-300 mb-2">Plan</label>
+                                    <select
+                                        value={userFormData.plan}
+                                        onChange={(e) => setUserFormData({ ...userFormData, plan: e.target.value })}
+                                        className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-xl text-white focus:outline-none focus:border-violet-500"
+                                    >
+                                        <option value="free">Free</option>
+                                        <option value="starter">Starter</option>
+                                        <option value="pro">Pro</option>
+                                        <option value="enterprise">Enterprise</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-300 mb-2">Role</label>
+                                    <select
+                                        value={userFormData.role}
+                                        onChange={(e) => setUserFormData({ ...userFormData, role: e.target.value })}
+                                        className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-xl text-white focus:outline-none focus:border-violet-500"
+                                    >
+                                        <option value="viewer">Viewer</option>
+                                        <option value="editor">Editor</option>
+                                        <option value="admin">Admin</option>
+                                        <option value="support">Support</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="p-6 border-t border-slate-700 flex gap-3">
+                            <button
+                                onClick={() => setShowAddUserModal(false)}
+                                className="flex-1 px-4 py-3 bg-slate-700 text-white rounded-xl font-medium hover:bg-slate-600 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleSaveNewUser}
+                                className="flex-1 px-4 py-3 bg-violet-500 text-white rounded-xl font-medium hover:bg-violet-600 transition-colors"
+                            >
+                                Create User
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* View User Modal */}
+            {showViewUserModal && selectedUserForAction && (
+                <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+                    <div className="bg-slate-800 rounded-2xl border border-slate-700 w-full max-w-lg">
+                        <div className="p-6 border-b border-slate-700 flex items-center justify-between">
+                            <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                                <Eye className="w-5 h-5 text-blue-400" />
+                                User Details
+                            </h3>
+                            <button
+                                onClick={() => setShowViewUserModal(false)}
+                                className="p-2 hover:bg-slate-700 rounded-lg"
+                            >
+                                <XCircle className="w-5 h-5 text-slate-400" />
+                            </button>
+                        </div>
+                        <div className="p-6">
+                            <div className="flex items-center gap-4 mb-6">
+                                <div className="w-16 h-16 bg-gradient-to-br from-violet-500 to-purple-600 rounded-full flex items-center justify-center text-white text-2xl font-bold">
+                                    {selectedUserForAction.name.charAt(0)}
+                                </div>
+                                <div>
+                                    <h4 className="text-xl font-bold text-white">{selectedUserForAction.name}</h4>
+                                    <p className="text-slate-400">{selectedUserForAction.email}</p>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="bg-slate-700/50 rounded-xl p-4">
+                                    <p className="text-xs text-slate-400 mb-1">Plan</p>
+                                    <p className="text-white font-medium capitalize">{selectedUserForAction.plan}</p>
+                                </div>
+                                <div className="bg-slate-700/50 rounded-xl p-4">
+                                    <p className="text-xs text-slate-400 mb-1">Status</p>
+                                    <p className={`font-medium capitalize ${selectedUserForAction.status === 'active' ? 'text-emerald-400' : 'text-red-400'}`}>
+                                        {selectedUserForAction.status}
+                                    </p>
+                                </div>
+                                <div className="bg-slate-700/50 rounded-xl p-4">
+                                    <p className="text-xs text-slate-400 mb-1">Revenue</p>
+                                    <p className="text-white font-medium">${selectedUserForAction.revenue}</p>
+                                </div>
+                                <div className="bg-slate-700/50 rounded-xl p-4">
+                                    <p className="text-xs text-slate-400 mb-1">Content Created</p>
+                                    <p className="text-white font-medium">{selectedUserForAction.contentCount}</p>
+                                </div>
+                                <div className="bg-slate-700/50 rounded-xl p-4 col-span-2">
+                                    <p className="text-xs text-slate-400 mb-1">Joined Date</p>
+                                    <p className="text-white font-medium">{selectedUserForAction.joined}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="p-6 border-t border-slate-700 flex gap-3">
+                            <button
+                                onClick={() => setShowViewUserModal(false)}
+                                className="flex-1 px-4 py-3 bg-slate-700 text-white rounded-xl font-medium hover:bg-slate-600 transition-colors"
+                            >
+                                Close
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setShowViewUserModal(false);
+                                    handleEditUser(selectedUserForAction);
+                                }}
+                                className="flex-1 px-4 py-3 bg-violet-500 text-white rounded-xl font-medium hover:bg-violet-600 transition-colors"
+                            >
+                                Edit User
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Edit User Modal */}
+            {showEditUserModal && selectedUserForAction && (
+                <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+                    <div className="bg-slate-800 rounded-2xl border border-slate-700 w-full max-w-md">
+                        <div className="p-6 border-b border-slate-700">
+                            <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                                <Edit className="w-5 h-5 text-amber-400" />
+                                Edit User
+                            </h3>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-slate-300 mb-2">Full Name</label>
+                                <input
+                                    type="text"
+                                    value={userFormData.name}
+                                    onChange={(e) => setUserFormData({ ...userFormData, name: e.target.value })}
+                                    className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-xl text-white focus:outline-none focus:border-violet-500"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-300 mb-2">Email Address</label>
+                                <input
+                                    type="email"
+                                    value={userFormData.email}
+                                    onChange={(e) => setUserFormData({ ...userFormData, email: e.target.value })}
+                                    className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-xl text-white focus:outline-none focus:border-violet-500"
+                                />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-300 mb-2">Plan</label>
+                                    <select
+                                        value={userFormData.plan}
+                                        onChange={(e) => setUserFormData({ ...userFormData, plan: e.target.value })}
+                                        className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-xl text-white focus:outline-none focus:border-violet-500"
+                                    >
+                                        <option value="free">Free</option>
+                                        <option value="starter">Starter</option>
+                                        <option value="pro">Pro</option>
+                                        <option value="enterprise">Enterprise</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-300 mb-2">Status</label>
+                                    <select
+                                        value={userFormData.status}
+                                        onChange={(e) => setUserFormData({ ...userFormData, status: e.target.value })}
+                                        className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-xl text-white focus:outline-none focus:border-violet-500"
+                                    >
+                                        <option value="active">Active</option>
+                                        <option value="suspended">Suspended</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="p-6 border-t border-slate-700 flex gap-3">
+                            <button
+                                onClick={() => setShowEditUserModal(false)}
+                                className="flex-1 px-4 py-3 bg-slate-700 text-white rounded-xl font-medium hover:bg-slate-600 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleSaveEditUser}
+                                className="flex-1 px-4 py-3 bg-violet-500 text-white rounded-xl font-medium hover:bg-violet-600 transition-colors"
+                            >
+                                Save Changes
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Delete Confirmation Modal */}
+            {showDeleteConfirmModal && selectedUserForAction && (
+                <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+                    <div className="bg-slate-800 rounded-2xl border border-red-500/30 w-full max-w-md">
+                        <div className="p-6 border-b border-slate-700">
+                            <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                                <AlertTriangle className="w-5 h-5 text-red-400" />
+                                Confirm Delete
+                            </h3>
+                        </div>
+                        <div className="p-6">
+                            <p className="text-slate-300 mb-4">
+                                Are you sure you want to delete the customer <strong className="text-white">{selectedUserForAction.name}</strong>?
+                            </p>
+                            <p className="text-sm text-slate-400">
+                                This action cannot be undone. All data associated with this customer will be permanently removed.
+                            </p>
+                        </div>
+                        <div className="p-6 border-t border-slate-700 flex gap-3">
+                            <button
+                                onClick={() => setShowDeleteConfirmModal(false)}
+                                className="flex-1 px-4 py-3 bg-slate-700 text-white rounded-xl font-medium hover:bg-slate-600 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleConfirmDelete}
+                                className="flex-1 px-4 py-3 bg-red-500 text-white rounded-xl font-medium hover:bg-red-600 transition-colors"
+                            >
+                                Delete Customer
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ==================== STAFF MODALS ==================== */}
+
+            {/* Add Staff Modal */}
+            {showAddStaffModal && (
+                <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+                    <div className="bg-slate-800 rounded-2xl border border-emerald-500/30 w-full max-w-md">
+                        <div className="p-6 border-b border-slate-700">
+                            <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                                <UserPlus className="w-5 h-5 text-emerald-400" />
+                                Add Staff Member
+                            </h3>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-slate-300 mb-2">Full Name *</label>
+                                <input
+                                    type="text"
+                                    value={staffFormData.name}
+                                    onChange={(e) => setStaffFormData({ ...staffFormData, name: e.target.value })}
+                                    placeholder="Enter full name"
+                                    className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:border-emerald-500"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-300 mb-2">Email Address *</label>
+                                <input
+                                    type="email"
+                                    value={staffFormData.email}
+                                    onChange={(e) => setStaffFormData({ ...staffFormData, email: e.target.value })}
+                                    placeholder="Enter email address"
+                                    className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:border-emerald-500"
+                                />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-300 mb-2">Role</label>
+                                    <select
+                                        value={staffFormData.role}
+                                        onChange={(e) => setStaffFormData({ ...staffFormData, role: e.target.value })}
+                                        className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-xl text-white focus:outline-none focus:border-emerald-500"
+                                    >
+                                        <option value="viewer">Viewer</option>
+                                        <option value="editor">Editor</option>
+                                        <option value="support">Support</option>
+                                        <option value="admin">Admin</option>
+                                        <option value="superadmin">Superadmin</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-300 mb-2">Department</label>
+                                    <select
+                                        value={staffFormData.department}
+                                        onChange={(e) => setStaffFormData({ ...staffFormData, department: e.target.value })}
+                                        className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-xl text-white focus:outline-none focus:border-emerald-500"
+                                    >
+                                        <option value="Support">Support</option>
+                                        <option value="Engineering">Engineering</option>
+                                        <option value="Management">Management</option>
+                                        <option value="Content">Content</option>
+                                        <option value="Analytics">Analytics</option>
+                                        <option value="Sales">Sales</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="p-6 border-t border-slate-700 flex gap-3">
+                            <button
+                                onClick={() => setShowAddStaffModal(false)}
+                                className="flex-1 px-4 py-3 bg-slate-700 text-white rounded-xl font-medium hover:bg-slate-600 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleSaveNewStaff}
+                                className="flex-1 px-4 py-3 bg-emerald-500 text-white rounded-xl font-medium hover:bg-emerald-600 transition-colors"
+                            >
+                                Add Staff
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* View Staff Modal */}
+            {showViewStaffModal && selectedStaffForAction && (
+                <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+                    <div className="bg-slate-800 rounded-2xl border border-slate-700 w-full max-w-lg">
+                        <div className="p-6 border-b border-slate-700 flex items-center justify-between">
+                            <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                                <Eye className="w-5 h-5 text-emerald-400" />
+                                Staff Details
+                            </h3>
+                            <button
+                                onClick={() => setShowViewStaffModal(false)}
+                                className="p-2 hover:bg-slate-700 rounded-lg"
+                            >
+                                <XCircle className="w-5 h-5 text-slate-400" />
+                            </button>
+                        </div>
+                        <div className="p-6">
+                            <div className="flex items-center gap-4 mb-6">
+                                <div className="w-16 h-16 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-full flex items-center justify-center text-white text-2xl font-bold">
+                                    {selectedStaffForAction.name.charAt(0)}
+                                </div>
+                                <div>
+                                    <h4 className="text-xl font-bold text-white">{selectedStaffForAction.name}</h4>
+                                    <p className="text-slate-400">{selectedStaffForAction.email}</p>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="bg-slate-700/50 rounded-xl p-4">
+                                    <p className="text-xs text-slate-400 mb-1">Role</p>
+                                    <p className="text-white font-medium capitalize">{selectedStaffForAction.role}</p>
+                                </div>
+                                <div className="bg-slate-700/50 rounded-xl p-4">
+                                    <p className="text-xs text-slate-400 mb-1">Department</p>
+                                    <p className="text-white font-medium">{selectedStaffForAction.department}</p>
+                                </div>
+                                <div className="bg-slate-700/50 rounded-xl p-4">
+                                    <p className="text-xs text-slate-400 mb-1">Status</p>
+                                    <p className={`font-medium capitalize ${selectedStaffForAction.status === 'active' ? 'text-emerald-400' : 'text-slate-400'}`}>
+                                        {selectedStaffForAction.status}
+                                    </p>
+                                </div>
+                                <div className="bg-slate-700/50 rounded-xl p-4">
+                                    <p className="text-xs text-slate-400 mb-1">Last Active</p>
+                                    <p className="text-white font-medium">{selectedStaffForAction.lastActive}</p>
+                                </div>
+                                <div className="bg-slate-700/50 rounded-xl p-4 col-span-2">
+                                    <p className="text-xs text-slate-400 mb-1">Joined Date</p>
+                                    <p className="text-white font-medium">{selectedStaffForAction.joined}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="p-6 border-t border-slate-700 flex gap-3">
+                            <button
+                                onClick={() => setShowViewStaffModal(false)}
+                                className="flex-1 px-4 py-3 bg-slate-700 text-white rounded-xl font-medium hover:bg-slate-600 transition-colors"
+                            >
+                                Close
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setShowViewStaffModal(false);
+                                    handleEditStaff(selectedStaffForAction);
+                                }}
+                                className="flex-1 px-4 py-3 bg-emerald-500 text-white rounded-xl font-medium hover:bg-emerald-600 transition-colors"
+                            >
+                                Edit Staff
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Edit Staff Modal */}
+            {showEditStaffModal && selectedStaffForAction && (
+                <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+                    <div className="bg-slate-800 rounded-2xl border border-slate-700 w-full max-w-md">
+                        <div className="p-6 border-b border-slate-700">
+                            <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                                <Edit className="w-5 h-5 text-amber-400" />
+                                Edit Staff Member
+                            </h3>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-slate-300 mb-2">Full Name</label>
+                                <input
+                                    type="text"
+                                    value={staffFormData.name}
+                                    onChange={(e) => setStaffFormData({ ...staffFormData, name: e.target.value })}
+                                    className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-xl text-white focus:outline-none focus:border-emerald-500"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-300 mb-2">Email Address</label>
+                                <input
+                                    type="email"
+                                    value={staffFormData.email}
+                                    onChange={(e) => setStaffFormData({ ...staffFormData, email: e.target.value })}
+                                    className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-xl text-white focus:outline-none focus:border-emerald-500"
+                                />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-300 mb-2">Role</label>
+                                    <select
+                                        value={staffFormData.role}
+                                        onChange={(e) => setStaffFormData({ ...staffFormData, role: e.target.value })}
+                                        className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-xl text-white focus:outline-none focus:border-emerald-500"
+                                    >
+                                        <option value="viewer">Viewer</option>
+                                        <option value="editor">Editor</option>
+                                        <option value="support">Support</option>
+                                        <option value="admin">Admin</option>
+                                        <option value="superadmin">Superadmin</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-300 mb-2">Department</label>
+                                    <select
+                                        value={staffFormData.department}
+                                        onChange={(e) => setStaffFormData({ ...staffFormData, department: e.target.value })}
+                                        className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-xl text-white focus:outline-none focus:border-emerald-500"
+                                    >
+                                        <option value="Support">Support</option>
+                                        <option value="Engineering">Engineering</option>
+                                        <option value="Management">Management</option>
+                                        <option value="Content">Content</option>
+                                        <option value="Analytics">Analytics</option>
+                                        <option value="Sales">Sales</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-300 mb-2">Status</label>
+                                <select
+                                    value={staffFormData.status}
+                                    onChange={(e) => setStaffFormData({ ...staffFormData, status: e.target.value })}
+                                    className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-xl text-white focus:outline-none focus:border-emerald-500"
+                                >
+                                    <option value="active">Active</option>
+                                    <option value="inactive">Inactive</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div className="p-6 border-t border-slate-700 flex gap-3">
+                            <button
+                                onClick={() => setShowEditStaffModal(false)}
+                                className="flex-1 px-4 py-3 bg-slate-700 text-white rounded-xl font-medium hover:bg-slate-600 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleSaveEditStaff}
+                                className="flex-1 px-4 py-3 bg-emerald-500 text-white rounded-xl font-medium hover:bg-emerald-600 transition-colors"
+                            >
+                                Save Changes
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Delete Staff Confirmation Modal */}
+            {showDeleteStaffModal && selectedStaffForAction && (
+                <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+                    <div className="bg-slate-800 rounded-2xl border border-red-500/30 w-full max-w-md">
+                        <div className="p-6 border-b border-slate-700">
+                            <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                                <AlertTriangle className="w-5 h-5 text-red-400" />
+                                Confirm Staff Removal
+                            </h3>
+                        </div>
+                        <div className="p-6">
+                            <p className="text-slate-300 mb-4">
+                                Are you sure you want to remove staff member <strong className="text-white">{selectedStaffForAction.name}</strong>?
+                            </p>
+                            <p className="text-sm text-slate-400">
+                                This will revoke their access to the admin console and all internal systems.
+                            </p>
+                        </div>
+                        <div className="p-6 border-t border-slate-700 flex gap-3">
+                            <button
+                                onClick={() => setShowDeleteStaffModal(false)}
+                                className="flex-1 px-4 py-3 bg-slate-700 text-white rounded-xl font-medium hover:bg-slate-600 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleConfirmDeleteStaff}
+                                className="flex-1 px-4 py-3 bg-red-500 text-white rounded-xl font-medium hover:bg-red-600 transition-colors"
+                            >
+                                Remove Staff
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

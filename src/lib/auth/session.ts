@@ -16,6 +16,7 @@ export interface SessionUser {
     role: 'user' | 'admin' | 'superadmin';
     isAdmin: boolean;
     createdAt: Date;
+    credits: number; // Usage-based currency
 }
 
 /**

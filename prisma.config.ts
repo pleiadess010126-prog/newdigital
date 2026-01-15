@@ -8,7 +8,7 @@ config({ path: '.env.local' });
 config({ path: '.env' });
 
 // Get DATABASE_URL from environment
-const databaseUrl = process.env["DATABASE_URL"] || "mysql://root:password@localhost:3306/digitalmeng";
+const databaseUrl = process.env["DATABASE_URL"] || "postgresql://localhost:5432/digitalmeng";
 
 export default defineConfig({
     schema: "prisma/schema.prisma",

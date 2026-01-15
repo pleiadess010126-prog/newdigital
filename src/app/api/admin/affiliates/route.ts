@@ -47,7 +47,395 @@ interface PayoutData {
     adminNotes?: string;
 }
 
-// Seed demo data
+// =================================================================
+// TIER CONFIGURATION - Automatic Tier Upgrade Rules
+// =================================================================
+type TierName = 'bronze' | 'silver' | 'gold' | 'platinum' | 'diamond';
+
+interface TierConfig {
+    name: TierName;
+    displayName: string;
+    minReferrals: number;
+    minEarnings: number;
+    commissionRate: number;
+    bonusOnUpgrade: number;
+    cookieDuration: number;
+}
+
+const TIER_CONFIG: TierConfig[] = [
+    { name: 'bronze', displayName: 'Bronze Partner', minReferrals: 0, minEarnings: 0, commissionRate: 10, bonusOnUpgrade: 0, cookieDuration: 30 },
+    { name: 'silver', displayName: 'Silver Partner', minReferrals: 10, minEarnings: 500, commissionRate: 12, bonusOnUpgrade: 25, cookieDuration: 45 },
+    { name: 'gold', displayName: 'Gold Partner', minReferrals: 25, minEarnings: 2000, commissionRate: 15, bonusOnUpgrade: 50, cookieDuration: 60 },
+    { name: 'platinum', displayName: 'Platinum Partner', minReferrals: 50, minEarnings: 5000, commissionRate: 18, bonusOnUpgrade: 100, cookieDuration: 90 },
+    { name: 'diamond', displayName: 'Diamond Partner', minReferrals: 100, minEarnings: 15000, commissionRate: 20, bonusOnUpgrade: 250, cookieDuration: 120 },
+];
+
+// =================================================================
+// AUTOMATIC PAYOUT CONFIGURATION
+// =================================================================
+interface PayoutSettings {
+    minimumPayout: number;              // Minimum amount to request payout
+    autoPayoutEnabled: boolean;         // Enable automatic payouts
+    autoPayoutThreshold: number;        // Auto-request payout when earnings reach this
+    scheduledPayoutDays: number[];      // Days of month to process (1-31)
+    instantPayoutTiers: TierName[];     // Tiers that get instant processing
+    autoApprovalTiers: TierName[];      // Tiers that don't need admin approval
+    processedWithinHours: number;       // Time to process after approval
+    paymentMethods: string[];           // Supported payment methods
+}
+
+const PAYOUT_SETTINGS: PayoutSettings = {
+    minimumPayout: 50,
+    autoPayoutEnabled: true,
+    autoPayoutThreshold: 100,           // Auto-request payout at $100
+    scheduledPayoutDays: [1, 15],       // Process on 1st and 15th
+    instantPayoutTiers: ['diamond', 'platinum'],
+    autoApprovalTiers: ['gold', 'platinum', 'diamond'],
+    processedWithinHours: 48,
+    paymentMethods: ['paypal', 'stripe', 'bank_transfer', 'wise']
+};
+
+// Store for auto-payout logs
+const autoPayoutLogs: Array<{
+    affiliateId: string;
+    affiliateName: string;
+    amount: number;
+    type: 'threshold' | 'scheduled' | 'instant';
+    status: 'created' | 'auto-approved' | 'processed';
+    timestamp: Date;
+}> = [];
+
+// Store for tier upgrade notifications
+const tierUpgradeNotifications: Array<{
+    affiliateId: string;
+    affiliateName: string;
+    fromTier: TierName;
+    toTier: TierName;
+    bonus: number;
+    timestamp: Date;
+}> = [];
+
+// =================================================================
+// AUTOMATIC TIER CALCULATION LOGIC
+// =================================================================
+
+/**
+ * Calculate the tier an affiliate qualifies for based on their performance
+ * Must meet BOTH referral AND earnings requirements
+ */
+function calculateTierFromPerformance(paidConversions: number, totalEarnings: number): TierName {
+    let qualifiedTier: TierName = 'bronze';
+
+    for (const tier of TIER_CONFIG) {
+        if (paidConversions >= tier.minReferrals && totalEarnings >= tier.minEarnings) {
+            qualifiedTier = tier.name;
+        }
+    }
+
+    return qualifiedTier;
+}
+
+/**
+ * Get tier configuration by name
+ */
+function getTierConfig(tierName: TierName): TierConfig {
+    return TIER_CONFIG.find(t => t.name === tierName) || TIER_CONFIG[0];
+}
+
+/**
+ * Check and apply automatic tier upgrade for an affiliate
+ * Returns the upgrade details if an upgrade occurred
+ */
+function checkAndApplyTierUpgrade(affiliate: AffiliateData): { upgraded: boolean; fromTier?: TierName; toTier?: TierName; bonus?: number } {
+    // Only active affiliates can be upgraded
+    if (affiliate.status !== 'active') {
+        return { upgraded: false };
+    }
+
+    const currentTier = affiliate.tier;
+    const qualifiedTier = calculateTierFromPerformance(
+        affiliate.stats.paidConversions,
+        affiliate.stats.totalEarnings
+    );
+
+    const currentTierIndex = TIER_CONFIG.findIndex(t => t.name === currentTier);
+    const qualifiedTierIndex = TIER_CONFIG.findIndex(t => t.name === qualifiedTier);
+
+    // Only upgrade, never downgrade automatically
+    if (qualifiedTierIndex > currentTierIndex) {
+        const newTierConfig = getTierConfig(qualifiedTier);
+
+        // Apply upgrade
+        affiliate.tier = qualifiedTier;
+        affiliate.commissionRate = newTierConfig.commissionRate;
+        affiliate.cookieDuration = newTierConfig.cookieDuration;
+
+        // Apply bonus to pending earnings
+        if (newTierConfig.bonusOnUpgrade > 0) {
+            affiliate.stats.pendingEarnings += newTierConfig.bonusOnUpgrade;
+            affiliate.stats.totalEarnings += newTierConfig.bonusOnUpgrade;
+        }
+
+        // Record notification
+        tierUpgradeNotifications.push({
+            affiliateId: affiliate.id,
+            affiliateName: affiliate.userName || 'Unknown',
+            fromTier: currentTier,
+            toTier: qualifiedTier,
+            bonus: newTierConfig.bonusOnUpgrade,
+            timestamp: new Date()
+        });
+
+        return {
+            upgraded: true,
+            fromTier: currentTier,
+            toTier: qualifiedTier,
+            bonus: newTierConfig.bonusOnUpgrade
+        };
+    }
+
+    return { upgraded: false };
+}
+
+/**
+ * Calculate progress towards next tier
+ */
+function calculateNextTierProgress(affiliate: AffiliateData): {
+    nextTier: TierName | null;
+    referralsNeeded: number;
+    earningsNeeded: number;
+    referralProgress: number;
+    earningsProgress: number;
+} | null {
+    const currentTierIndex = TIER_CONFIG.findIndex(t => t.name === affiliate.tier);
+
+    if (currentTierIndex >= TIER_CONFIG.length - 1) {
+        return null; // Already at max tier
+    }
+
+    const nextTier = TIER_CONFIG[currentTierIndex + 1];
+    const referralsNeeded = Math.max(0, nextTier.minReferrals - affiliate.stats.paidConversions);
+    const earningsNeeded = Math.max(0, nextTier.minEarnings - affiliate.stats.totalEarnings);
+
+    const referralProgress = nextTier.minReferrals > 0
+        ? Math.min(100, (affiliate.stats.paidConversions / nextTier.minReferrals) * 100)
+        : 100;
+    const earningsProgress = nextTier.minEarnings > 0
+        ? Math.min(100, (affiliate.stats.totalEarnings / nextTier.minEarnings) * 100)
+        : 100;
+
+    return {
+        nextTier: nextTier.name,
+        referralsNeeded,
+        earningsNeeded,
+        referralProgress,
+        earningsProgress
+    };
+}
+
+// =================================================================
+// AUTOMATIC PAYOUT FUNCTIONS
+// =================================================================
+
+/**
+ * Check if affiliate qualifies for automatic payout and create one
+ */
+function checkAndCreateAutoPayout(affiliate: AffiliateData): {
+    created: boolean;
+    payout?: PayoutData;
+    type?: 'threshold' | 'instant';
+} {
+    if (!PAYOUT_SETTINGS.autoPayoutEnabled) {
+        return { created: false };
+    }
+
+    if (affiliate.status !== 'active') {
+        return { created: false };
+    }
+
+    if (affiliate.stats.pendingEarnings < PAYOUT_SETTINGS.minimumPayout) {
+        return { created: false };
+    }
+
+    // Check threshold-based auto-payout
+    if (affiliate.stats.pendingEarnings >= PAYOUT_SETTINGS.autoPayoutThreshold) {
+        const isInstantTier = PAYOUT_SETTINGS.instantPayoutTiers.includes(affiliate.tier);
+        const isAutoApprovalTier = PAYOUT_SETTINGS.autoApprovalTiers.includes(affiliate.tier);
+
+        const payoutId = `pay_auto_${Date.now()}_${affiliate.id.slice(-4)}`;
+
+        // Determine initial status based on tier
+        let initialStatus: PayoutData['status'] = 'pending';
+        if (isInstantTier) {
+            initialStatus = 'completed'; // Instant for Diamond/Platinum
+        } else if (isAutoApprovalTier) {
+            initialStatus = 'processing'; // Auto-approved for Gold+
+        }
+
+        const newPayout: PayoutData = {
+            id: payoutId,
+            affiliateId: affiliate.id,
+            affiliateName: affiliate.userName,
+            amount: affiliate.stats.pendingEarnings,
+            status: initialStatus,
+            paymentMethod: affiliate.paymentMethod,
+            requestedAt: new Date(),
+            processedAt: isInstantTier ? new Date() : undefined,
+            adminNotes: isInstantTier
+                ? 'Auto-processed (Instant Payout - Premium Tier)'
+                : isAutoApprovalTier
+                    ? 'Auto-approved (Gold+ Tier)'
+                    : 'Auto-created (Threshold reached)'
+        };
+
+        // Store the payout
+        payoutStore.set(payoutId, newPayout);
+
+        // Deduct from pending earnings
+        const payoutAmount = affiliate.stats.pendingEarnings;
+        affiliate.stats.pendingEarnings = 0;
+        if (isInstantTier) {
+            affiliate.stats.paidEarnings += payoutAmount;
+        }
+        affiliateStore.set(affiliate.id, affiliate);
+
+        // Log the auto-payout
+        autoPayoutLogs.push({
+            affiliateId: affiliate.id,
+            affiliateName: affiliate.userName || 'Unknown',
+            amount: payoutAmount,
+            type: isInstantTier ? 'instant' : 'threshold',
+            status: isInstantTier ? 'processed' : isAutoApprovalTier ? 'auto-approved' : 'created',
+            timestamp: new Date()
+        });
+
+        return {
+            created: true,
+            payout: newPayout,
+            type: isInstantTier ? 'instant' : 'threshold'
+        };
+    }
+
+    return { created: false };
+}
+
+/**
+ * Process scheduled payouts for all eligible affiliates
+ * Should be called by a cron job on scheduled days
+ */
+function processScheduledPayouts(): {
+    processed: number;
+    payouts: Array<{
+        affiliateId: string;
+        affiliateName: string;
+        amount: number;
+        status: string;
+    }>;
+} {
+    const today = new Date().getDate();
+
+    // Check if today is a scheduled payout day
+    if (!PAYOUT_SETTINGS.scheduledPayoutDays.includes(today)) {
+        return { processed: 0, payouts: [] };
+    }
+
+    const processedPayouts: Array<{
+        affiliateId: string;
+        affiliateName: string;
+        amount: number;
+        status: string;
+    }> = [];
+
+    for (const affiliate of affiliateStore.values()) {
+        if (affiliate.status !== 'active') continue;
+        if (affiliate.stats.pendingEarnings < PAYOUT_SETTINGS.minimumPayout) continue;
+
+        const isAutoApprovalTier = PAYOUT_SETTINGS.autoApprovalTiers.includes(affiliate.tier);
+        const isInstantTier = PAYOUT_SETTINGS.instantPayoutTiers.includes(affiliate.tier);
+
+        const payoutId = `pay_sched_${Date.now()}_${affiliate.id.slice(-4)}`;
+
+        let status: PayoutData['status'] = 'pending';
+        if (isInstantTier) {
+            status = 'completed';
+        } else if (isAutoApprovalTier) {
+            status = 'processing';
+        }
+
+        const newPayout: PayoutData = {
+            id: payoutId,
+            affiliateId: affiliate.id,
+            affiliateName: affiliate.userName,
+            amount: affiliate.stats.pendingEarnings,
+            status,
+            paymentMethod: affiliate.paymentMethod,
+            requestedAt: new Date(),
+            processedAt: isInstantTier ? new Date() : undefined,
+            adminNotes: `Scheduled payout (Day ${today})`
+        };
+
+        payoutStore.set(payoutId, newPayout);
+
+        const payoutAmount = affiliate.stats.pendingEarnings;
+        affiliate.stats.pendingEarnings = 0;
+        if (isInstantTier) {
+            affiliate.stats.paidEarnings += payoutAmount;
+        }
+        affiliateStore.set(affiliate.id, affiliate);
+
+        autoPayoutLogs.push({
+            affiliateId: affiliate.id,
+            affiliateName: affiliate.userName || 'Unknown',
+            amount: payoutAmount,
+            type: 'scheduled',
+            status: isInstantTier ? 'processed' : isAutoApprovalTier ? 'auto-approved' : 'created',
+            timestamp: new Date()
+        });
+
+        processedPayouts.push({
+            affiliateId: affiliate.id,
+            affiliateName: affiliate.userName || 'Unknown',
+            amount: payoutAmount,
+            status
+        });
+    }
+
+    return {
+        processed: processedPayouts.length,
+        payouts: processedPayouts
+    };
+}
+
+/**
+ * Auto-approve pending payouts for eligible tiers
+ */
+function autoApprovePendingPayouts(): {
+    approved: number;
+    payouts: string[];
+} {
+    const approvedPayouts: string[] = [];
+
+    for (const payout of payoutStore.values()) {
+        if (payout.status !== 'pending') continue;
+
+        const affiliate = affiliateStore.get(payout.affiliateId);
+        if (!affiliate) continue;
+
+        if (PAYOUT_SETTINGS.autoApprovalTiers.includes(affiliate.tier)) {
+            payout.status = 'processing';
+            payout.adminNotes = (payout.adminNotes || '') + ' | Auto-approved based on tier';
+            payoutStore.set(payout.id, payout);
+            approvedPayouts.push(payout.id);
+        }
+    }
+
+    return {
+        approved: approvedPayouts.length,
+        payouts: approvedPayouts
+    };
+}
+
+
 function seedDemoData() {
     if (affiliateStore.size === 0) {
         // Create some demo affiliates
@@ -228,9 +616,131 @@ export async function GET(request: NextRequest) {
             });
         }
 
-        // Default: Get all affiliates
+        // Get tier configuration
+        if (action === 'tier-config') {
+            return NextResponse.json({
+                success: true,
+                data: TIER_CONFIG
+            });
+        }
+
+        // Get tier upgrade notifications
+        if (action === 'notifications') {
+            return NextResponse.json({
+                success: true,
+                data: tierUpgradeNotifications.slice(-20) // Last 20 notifications
+            });
+        }
+
+        // Get payout settings
+        if (action === 'payout-settings') {
+            return NextResponse.json({
+                success: true,
+                data: PAYOUT_SETTINGS
+            });
+        }
+
+        // Get auto-payout logs
+        if (action === 'payout-logs') {
+            return NextResponse.json({
+                success: true,
+                data: autoPayoutLogs.slice(-50) // Last 50 logs
+            });
+        }
+
+        // Trigger scheduled payouts (Manual/Cron)
+        if (action === 'process-scheduled') {
+            const result = processScheduledPayouts();
+            return NextResponse.json({
+                success: true,
+                data: result,
+                message: `Processed scheduled payouts. ${result.processed} payout(s) created.`
+            });
+        }
+
+        // Trigger auto-approval (Manual/Cron)
+        if (action === 'auto-approve') {
+            const result = autoApprovePendingPayouts();
+            return NextResponse.json({
+                success: true,
+                data: result,
+                message: `Auto-approved ${result.approved} pending payout(s).`
+            });
+        }
+
+        // Recalculate all affiliate tiers
+        if (action === 'recalculate') {
+            const upgrades: Array<{
+                affiliateId: string;
+                affiliateName: string;
+                fromTier: TierName;
+                toTier: TierName;
+                bonus: number;
+            }> = [];
+
+            for (const affiliate of affiliateStore.values()) {
+                const result = checkAndApplyTierUpgrade(affiliate);
+                if (result.upgraded && result.fromTier && result.toTier) {
+                    affiliateStore.set(affiliate.id, affiliate);
+                    upgrades.push({
+                        affiliateId: affiliate.id,
+                        affiliateName: affiliate.userName || 'Unknown',
+                        fromTier: result.fromTier,
+                        toTier: result.toTier,
+                        bonus: result.bonus || 0
+                    });
+                }
+            }
+
+            return NextResponse.json({
+                success: true,
+                data: {
+                    totalChecked: affiliateStore.size,
+                    totalUpgraded: upgrades.length,
+                    upgrades
+                },
+                message: `Recalculated tiers. ${upgrades.length} affiliate(s) upgraded.`
+            });
+        }
+
+        // Get single affiliate with progress
+        if (action === 'progress') {
+            const affiliateId = searchParams.get('id');
+            if (!affiliateId) {
+                return NextResponse.json(
+                    { success: false, error: 'Affiliate ID required' },
+                    { status: 400 }
+                );
+            }
+
+            const affiliate = affiliateStore.get(affiliateId);
+            if (!affiliate) {
+                return NextResponse.json(
+                    { success: false, error: 'Affiliate not found' },
+                    { status: 404 }
+                );
+            }
+
+            const progress = calculateNextTierProgress(affiliate);
+            const currentTierConfig = getTierConfig(affiliate.tier);
+
+            return NextResponse.json({
+                success: true,
+                data: {
+                    affiliate,
+                    currentTier: currentTierConfig,
+                    nextTierProgress: progress
+                }
+            });
+        }
+
+        // Default: Get all affiliates with their progress
         const affiliates = Array.from(affiliateStore.values())
-            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+            .map(affiliate => ({
+                ...affiliate,
+                nextTierProgress: calculateNextTierProgress(affiliate)
+            }));
 
         return NextResponse.json({
             success: true,
@@ -372,6 +882,174 @@ export async function DELETE(request: NextRequest) {
         console.error('Admin affiliate DELETE error:', error);
         return NextResponse.json(
             { success: false, error: 'Failed to suspend affiliate' },
+            { status: 500 }
+        );
+    }
+}
+
+// =================================================================
+// POST - Record conversion / Add earnings (triggers tier check)
+// =================================================================
+export async function POST(request: NextRequest) {
+    try {
+        seedDemoData();
+
+        const body = await request.json();
+        const { action, affiliateId, amount, clicks, signups, conversions } = body;
+
+        // Record a new conversion
+        if (action === 'record-conversion') {
+            const affiliate = affiliateStore.get(affiliateId);
+            if (!affiliate) {
+                return NextResponse.json(
+                    { success: false, error: 'Affiliate not found' },
+                    { status: 404 }
+                );
+            }
+
+            if (affiliate.status !== 'active') {
+                return NextResponse.json(
+                    { success: false, error: 'Affiliate is not active' },
+                    { status: 400 }
+                );
+            }
+
+            // Calculate commission
+            const commission = (amount * affiliate.commissionRate) / 100;
+
+            // Update stats
+            affiliate.stats.paidConversions += 1;
+            affiliate.stats.pendingEarnings += commission;
+            affiliate.stats.totalEarnings += commission;
+
+            // Check for automatic tier upgrade
+            const upgradeResult = checkAndApplyTierUpgrade(affiliate);
+
+            // Check for automatic payout (threshold-based)
+            const autoPayoutResult = checkAndCreateAutoPayout(affiliate);
+
+            affiliateStore.set(affiliateId, affiliate);
+
+            return NextResponse.json({
+                success: true,
+                data: {
+                    affiliate,
+                    commission,
+                    tierUpgrade: upgradeResult.upgraded ? {
+                        fromTier: upgradeResult.fromTier,
+                        toTier: upgradeResult.toTier,
+                        bonus: upgradeResult.bonus
+                    } : null,
+                    autoPayout: autoPayoutResult.created ? {
+                        payoutId: autoPayoutResult.payout?.id,
+                        amount: autoPayoutResult.payout?.amount,
+                        type: autoPayoutResult.type,
+                        status: autoPayoutResult.payout?.status
+                    } : null
+                },
+                message: autoPayoutResult.created
+                    ? `Conversion recorded! Commission: $${commission.toFixed(2)}. Auto-payout of $${autoPayoutResult.payout?.amount.toFixed(2)} ${autoPayoutResult.type === 'instant' ? 'processed instantly!' : 'created!'}`
+                    : upgradeResult.upgraded
+                        ? `Conversion recorded! Affiliate upgraded from ${upgradeResult.fromTier} to ${upgradeResult.toTier} with $${upgradeResult.bonus} bonus!`
+                        : `Conversion recorded! Commission: $${commission.toFixed(2)}`
+            });
+        }
+
+        // Add clicks/signups/conversions manually (for testing)
+        if (action === 'add-stats') {
+            const affiliate = affiliateStore.get(affiliateId);
+            if (!affiliate) {
+                return NextResponse.json(
+                    { success: false, error: 'Affiliate not found' },
+                    { status: 404 }
+                );
+            }
+
+            // Add stats
+            if (clicks) affiliate.stats.totalClicks += clicks;
+            if (signups) affiliate.stats.totalSignups += signups;
+            if (conversions) {
+                affiliate.stats.paidConversions += conversions;
+                // Add earnings based on conversions (average $50 per conversion)
+                const earnings = conversions * 50 * (affiliate.commissionRate / 100);
+                affiliate.stats.pendingEarnings += earnings;
+                affiliate.stats.totalEarnings += earnings;
+            }
+
+            // Check for automatic tier upgrade
+            const upgradeResult = checkAndApplyTierUpgrade(affiliate);
+
+            affiliateStore.set(affiliateId, affiliate);
+
+            return NextResponse.json({
+                success: true,
+                data: {
+                    affiliate,
+                    tierUpgrade: upgradeResult.upgraded ? {
+                        fromTier: upgradeResult.fromTier,
+                        toTier: upgradeResult.toTier,
+                        bonus: upgradeResult.bonus
+                    } : null,
+                    nextTierProgress: calculateNextTierProgress(affiliate)
+                },
+                message: upgradeResult.upgraded
+                    ? `Stats updated! Tier upgraded: ${upgradeResult.fromTier} → ${upgradeResult.toTier}`
+                    : 'Stats updated successfully'
+            });
+        }
+
+        // Request payout
+        if (action === 'request-payout') {
+            const affiliate = affiliateStore.get(affiliateId);
+            if (!affiliate) {
+                return NextResponse.json(
+                    { success: false, error: 'Affiliate not found' },
+                    { status: 404 }
+                );
+            }
+
+            if (affiliate.stats.pendingEarnings < 50) {
+                return NextResponse.json(
+                    { success: false, error: 'Minimum payout amount is $50' },
+                    { status: 400 }
+                );
+            }
+
+            const payoutAmount = amount || affiliate.stats.pendingEarnings;
+            const payoutId = `pay_${Date.now()}`;
+
+            const newPayout: PayoutData = {
+                id: payoutId,
+                affiliateId: affiliate.id,
+                affiliateName: affiliate.userName,
+                amount: payoutAmount,
+                status: 'pending',
+                paymentMethod: affiliate.paymentMethod,
+                requestedAt: new Date()
+            };
+
+            // Deduct from pending earnings
+            affiliate.stats.pendingEarnings -= payoutAmount;
+
+            payoutStore.set(payoutId, newPayout);
+            affiliateStore.set(affiliateId, affiliate);
+
+            return NextResponse.json({
+                success: true,
+                data: newPayout,
+                message: `Payout request for $${payoutAmount.toFixed(2)} submitted successfully`
+            });
+        }
+
+        return NextResponse.json(
+            { success: false, error: 'Invalid action' },
+            { status: 400 }
+        );
+
+    } catch (error) {
+        console.error('Admin affiliate POST error:', error);
+        return NextResponse.json(
+            { success: false, error: 'Failed to process request' },
             { status: 500 }
         );
     }

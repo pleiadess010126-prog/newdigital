@@ -390,6 +390,103 @@ export async function processAgentCommand(
         };
     }
 
+    // Support / Ticket / Issue Escalation
+    if (lowerInput.includes('support') || lowerInput.includes('ticket') || lowerInput.includes('issue') ||
+        lowerInput.includes('problem') || lowerInput.includes('bug') || lowerInput.includes('not working') ||
+        lowerInput.includes('broken') || lowerInput.includes('error') || lowerInput.includes('help me')) {
+        return {
+            id: `msg_${Date.now()}`,
+            role: 'agent',
+            content: '🎫 **Support Escalation Protocol**\n\nI\'m sorry you\'re experiencing an issue. I can help you in two ways:\n\n1. **Try to solve it now** - Tell me more about what\'s happening\n2. **Create a support ticket** - Our human support team will assist you\n\nIf this is something I can\'t resolve, I\'ll create a ticket for you automatically and include our conversation for context.',
+            timestamp: new Date(),
+            thoughtSteps: [
+                { label: 'Analyzing issue context...', status: 'pending' },
+                { label: 'Checking knowledge base...', status: 'pending' },
+                { label: 'Preparing escalation path...', status: 'pending' }
+            ],
+            logs: [
+                '[SUPPORT] Issue detection trigger activated',
+                '[KB] Searching knowledge base for solutions...',
+                '[ESCALATE] Human support queue available'
+            ],
+            actions: [
+                {
+                    id: 'create-ticket',
+                    type: 'execute',
+                    label: 'Create Support Ticket',
+                    description: 'Escalate to human team',
+                    icon: '🎫',
+                    params: { category: 'technical', nanduContext: input },
+                    execute: async () => {
+                        // This will trigger ticket creation with Nandu context
+                        console.log('[NANDU] Creating support ticket with context:', input);
+                        if (typeof window !== 'undefined') {
+                            window.location.href = '/support?action=create&source=nandu&context=' + encodeURIComponent(input);
+                        }
+                    }
+                },
+                {
+                    id: 'browse-support',
+                    type: 'navigate',
+                    label: 'View My Tickets',
+                    description: 'Check ticket status',
+                    icon: '📋',
+                    execute: () => {
+                        if (typeof window !== 'undefined') {
+                            window.location.href = '/support';
+                        }
+                    }
+                },
+                {
+                    id: 'try-again',
+                    type: 'explain',
+                    label: 'Describe Issue',
+                    description: 'I\'ll try to help',
+                    icon: '💬',
+                    execute: () => { }
+                },
+            ],
+        };
+    }
+
+    // Billing / Payment issues - escalate to support
+    if (lowerInput.includes('refund') || lowerInput.includes('charge') || lowerInput.includes('payment failed') ||
+        lowerInput.includes('cancel subscription') || lowerInput.includes('overcharged')) {
+        return {
+            id: `msg_${Date.now()}`,
+            role: 'agent',
+            content: '💳 **Billing Support Required**\n\nFor billing-related matters like refunds, payment issues, or subscription changes, I\'ll need to connect you with our billing team.\n\n**Why?** Billing operations require human authorization for your security.\n\nI can create a priority ticket for you right now, and our billing team typically responds within 2-4 hours.',
+            timestamp: new Date(),
+            thoughtSteps: [
+                { label: 'Detecting billing operation request...', status: 'pending' },
+                { label: 'Verifying user subscription status...', status: 'pending' },
+                { label: 'Preparing priority escalation...', status: 'pending' }
+            ],
+            actions: [
+                {
+                    id: 'create-billing-ticket',
+                    type: 'execute',
+                    label: 'Create Billing Ticket',
+                    description: 'Priority: High',
+                    icon: '💳',
+                    execute: async () => {
+                        if (typeof window !== 'undefined') {
+                            window.location.href = '/support?action=create&category=billing&priority=high&source=nandu';
+                        }
+                    }
+                },
+                {
+                    id: 'view-billing',
+                    type: 'navigate',
+                    label: 'View Billing History',
+                    description: 'Check invoices',
+                    icon: '📄',
+                    execute: () => { }
+                },
+            ],
+        };
+    }
+
     // Default response for unknown commands
     return {
         id: `msg_${Date.now()}`,
@@ -416,6 +513,7 @@ export const QUICK_ACTIONS = [
     { id: 'quick-analytics', label: 'Analytics', icon: '📊', command: 'show analytics' },
     { id: 'quick-schedule', label: 'Best Times', icon: '⏰', command: 'best posting times' },
     { id: 'quick-trends', label: 'Trends', icon: '🔥', command: 'show trends' },
+    { id: 'quick-support', label: 'Support', icon: '🎫', command: 'I need support' },
     { id: 'quick-help', label: 'Help', icon: '❓', command: 'help' },
 ];
 

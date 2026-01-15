@@ -422,6 +422,14 @@ export const mockRiskAlerts: RiskAlert[] = [
 
 export const mockAIAgents: AIAgent[] = [
     {
+        id: 'agent_nandu',
+        name: 'Nandu',
+        type: 'chatbot-worker',
+        status: 'working',
+        lastActive: new Date(),
+        tasksCompleted: 3847,
+    },
+    {
         id: 'agent_supervisor',
         name: 'Bedrock Supervisor',
         type: 'supervisor',
